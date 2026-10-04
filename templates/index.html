@@ -8096,7 +8096,6 @@ function jrnlExportCSV(){
     <div style="grid-area:hourly;background:#fff;display:flex;flex-direction:column;min-height:0;min-width:0;">
       <div style="display:flex;align-items:center;padding:3px 6px;border-bottom:1px solid #e4e7eb;background:#f6f8fa;flex-shrink:0;gap:6px;">
         <button id="ibdLongBtn"  onclick="ibdPositionTool('long')"  style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #2ea043;background:rgba(46,160,67,.12);color:#2ea043;cursor:pointer;line-height:1.4;">▲ Long</button>
-        <button id="ibdShortBtn" onclick="ibdPositionTool('short')" style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #f85149;background:rgba(248,81,73,.12);color:#f85149;cursor:pointer;line-height:1.4;">▼ Short</button>
         <button id="ibdClearBtn" onclick="ibdPositionTool('clear')" style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #888;background:transparent;color:#888;cursor:pointer;line-height:1.4;display:none;">✕</button>
         <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">DAILY</span>
         <span style="font-size:.58rem;color:#888;font-weight:600;">KC</span>
@@ -9680,18 +9679,23 @@ function jrnlExportCSV(){
   }
 
   function _posToolSetActive(direction) {
+    // Short button removed — sb may legitimately not exist; stay null-safe
+    // instead of bailing out (which used to also break Long's own highlight).
     const lb = document.getElementById('ibdLongBtn');
     const sb = document.getElementById('ibdShortBtn');
-    if (!lb || !sb) return;
-    // Reset both
-    lb.style.background = 'rgba(46,160,67,.12)';  lb.style.color = '#2ea043'; lb.style.boxShadow = '';
-    sb.style.background = 'rgba(248,81,73,.12)';  sb.style.color = '#f85149'; sb.style.boxShadow = '';
-    if (direction === 'long') {
-      lb.style.background = '#2ea043'; lb.style.color = '#fff';
-      lb.style.boxShadow = '0 0 0 2px #2ea04388';
-    } else if (direction === 'short') {
-      sb.style.background = '#f85149'; sb.style.color = '#fff';
-      sb.style.boxShadow = '0 0 0 2px #f8514988';
+    if (lb) {
+      lb.style.background = 'rgba(46,160,67,.12)'; lb.style.color = '#2ea043'; lb.style.boxShadow = '';
+      if (direction === 'long') {
+        lb.style.background = '#2ea043'; lb.style.color = '#fff';
+        lb.style.boxShadow = '0 0 0 2px #2ea04388';
+      }
+    }
+    if (sb) {
+      sb.style.background = 'rgba(248,81,73,.12)'; sb.style.color = '#f85149'; sb.style.boxShadow = '';
+      if (direction === 'short') {
+        sb.style.background = '#f85149'; sb.style.color = '#fff';
+        sb.style.boxShadow = '0 0 0 2px #f8514988';
+      }
     }
   }
 
