@@ -1,0 +1,55 @@
+name: Price Refresh + Index + IBD RS + Scanner
+
+on:
+  schedule:
+    # Every weekday (Mon-Fri) at 7 AM ET (11:00 UTC EST / 12:00 UTC EDT) — well
+    # before the 9:30 AM ET NYSE open either way.
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write config.py
+        run: |
+          cat > config.py << 'PYEOF'
+          DB_MODE = "neon"
+          SCANNER_PORT = 8000
+          TRADER_PORT  = 8001
+          SIM_PORT     = 8002
+          PYEOF
+
+      - name: Check secrets are set
+        run: |
+          [ -n "$DATABASE_URL" ] && echo "DATABASE_URL: set" || echo "DATABASE_URL: MISSING"
+
+      - name: Run unified price refresh — stocks + index daily + 60M + IBD RS (attempt 1)
+        id: attempt1
+        run: python run_price_refresh.py
+        continue-on-error: true
+
+      - name: Retry unified price refresh (attempt 2)
+        id: attempt2
+        if: steps.attempt1.outcome == 'failure'
+        run: python run_price_refresh.py
+
+      - name: Run EMA scanner
+        if: steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success'
+        run: python run_scan.py

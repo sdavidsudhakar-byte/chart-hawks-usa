@@ -1,0 +1,65 @@
+# ── Secrets — NEVER commit these ──────────────────────────────────────────────
+.env
+config.py
+
+# ── Local SQLite database ──────────────────────────────────────────────────────
+local.db
+local.db-shm
+local.db-wal
+market_data.db
+market_data.db-shm
+market_data.db-wal
+
+# ── Python cache ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Logs ───────────────────────────────────────────────────────────────────────
+*.log
+fyersApi.log
+
+# ── OS / editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Claude internal ────────────────────────────────────────────────────────────
+.claude/
+
+# ── Fyers browser session (Chromium runtime data — never commit) ───────────────
+fyers_session/
+
+# ── Debug dumps ────────────────────────────────────────────────────────────────
+watchlist_debug/
+
+# ── Runtime progress / state files ────────────────────────────────────────────
+backfill_progress.json
+index_backfill_progress.json
+
+# ── Scratch databases ──────────────────────────────────────────────────────────
+daily_setup.db
+
+# ── Analysis / spreadsheet artifacts ──────────────────────────────────────────
+*.xlsx
+~$*
+
+# ── Ad-hoc script output / DB backups ─────────────────────────────────────────
+*.out
+local.db.bak*
+*.bak
+daily_setup.db
+market_data.db
+_tmp_check.js
+probe_results*.txt
+watchlist_temp/
+training_doc.html

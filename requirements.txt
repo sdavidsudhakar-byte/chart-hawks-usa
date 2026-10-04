@@ -1,0 +1,9 @@
+fastapi==0.134.0
+uvicorn[standard]
+psycopg2-binary==2.9.11
+python-dotenv==1.2.2
+yfinance>=0.2.40
+pandas
+pandas-market-calendars
+requests==2.31.0
+jinja2

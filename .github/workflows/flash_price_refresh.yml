@@ -1,0 +1,56 @@
+name: Flash Price Refresh (incremental)
+
+# Manual-trigger only for now. To enable a schedule later, uncomment the cron
+# block below (times are UTC). Example: once daily after market close ~4pm ET:
+#   - cron: '0 21 * * 1-5'   # 21:00 UTC = 4:00 PM EDT / 5:00 PM EST, Mon-Fri
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 21 * * 1-5'
+
+jobs:
+  flash-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write config.py
+        run: |
+          cat > config.py << 'PYEOF'
+          DB_MODE = "neon"
+          SCANNER_PORT = 8000
+          TRADER_PORT  = 8001
+          SIM_PORT     = 8002
+          PYEOF
+
+      - name: Check secrets are set
+        run: |
+          [ -n "$DATABASE_URL" ] && echo "DATABASE_URL: set" || echo "DATABASE_URL: MISSING"
+
+      - name: Run flash (incremental) price refresh — attempt 1
+        id: attempt1
+        run: python run_flash_refresh.py
+        continue-on-error: true
+
+      - name: Retry flash price refresh — attempt 2
+        id: attempt2
+        if: steps.attempt1.outcome == 'failure'
+        run: python run_flash_refresh.py
+
+      - name: Run EMA scanner
+        if: steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success'
+        run: python run_scan.py
