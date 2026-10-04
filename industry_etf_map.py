@@ -56,11 +56,9 @@ INDUSTRY_ETF: dict[str, str] = {
     "Software & IT Services":     "IGV",   # vs IGM, XSW
     "Semiconductors":             "SMH",   # vs SOXX, XSD ($67.8B vs $41.8B/$2.6B)
     "Aerospace & Defense":        "ITA",   # vs XAR ($13.6B vs $5.9B)
-    "Oil & Gas E&P":              "XOP",
-    "Oil & Gas Equip & Services": "OIH",   # vs XES, IEZ ($2.0B vs $0.4B/$0.4B)
+    "Oil & Gas":                  "XOP",   # one entry, not split by sub-theme —
+                                            # XOP ($4.0B) > OIH ($2.0B) AUM
     "Internet & Digital Media":   "FDN",
-    "Cloud Computing":            "SKYY",  # vs CLOU ($3.4B vs $0.4B) — distinct
-                                            # theme from Internet & Digital Media
     "Infrastructure & Machinery": "PAVE",
     "Food & Beverage":            "PBJ",
     "Metals & Mining":            "XME",
@@ -133,13 +131,14 @@ INDUSTRY_NAME_MAP: dict[str, str] = {
     "Semiconductor Equipment & Materials": "Semiconductors",
     # Aerospace & Defense
     "Aerospace & Defense": "Aerospace & Defense",
-    # Oil & Gas — split upstream (E&P/midstream/integrated) from downstream/services
-    "Oil & Gas E&P": "Oil & Gas E&P",
-    "Oil & Gas Midstream": "Oil & Gas E&P",
-    "Oil & Gas Integrated": "Oil & Gas E&P",
-    "Oil & Gas Drilling": "Oil & Gas E&P",
-    "Oil & Gas Equipment & Services": "Oil & Gas Equip & Services",
-    "Oil & Gas Refining & Marketing": "Oil & Gas Equip & Services",
+    # Oil & Gas — one entry, not split by sub-theme (consistent with every
+    # other industry here being a single ETF, not several near-duplicates)
+    "Oil & Gas E&P": "Oil & Gas",
+    "Oil & Gas Midstream": "Oil & Gas",
+    "Oil & Gas Integrated": "Oil & Gas",
+    "Oil & Gas Drilling": "Oil & Gas",
+    "Oil & Gas Equipment & Services": "Oil & Gas",
+    "Oil & Gas Refining & Marketing": "Oil & Gas",
     # Internet & Digital Media
     "Internet Content & Information": "Internet & Digital Media",
     "Internet Retail": "Internet & Digital Media",
