@@ -8143,6 +8143,9 @@ function jrnlExportCSV(){
   // RS subpanel chart, so their plot areas stay pixel-aligned — see the
   // minimumWidth comment above priceChart's 'right' scale options.
   const RS_AXIS_WIDTH = 58;
+  // Empty bar-widths of breathing room left after the last candle — see
+  // _setVisible for why this can't just be the timeScale `rightOffset` option.
+  const RIGHT_GAP_BARS = 6;
   const VOL_UP      = 'rgba(38,166,154,0.25)';
   const VOL_DOWN    = 'rgba(239,83,80,0.25)';
   const SIG_MHIGH   = '#e53935';
@@ -8710,9 +8713,13 @@ function jrnlExportCSV(){
     const visible = VISIBLE_BARS[timeframe] || n;
     try {
       const ts = chart.timeScale();
-      // setVisibleLogicalRange shows exactly `visible` bars at the right edge,
-      // with a small right margin so the last candle isn't flush to the axis.
-      ts.setVisibleLogicalRange({ from: Math.max(0, n - visible), to: n + 1 });
+      // setVisibleLogicalRange shows exactly `visible` bars, with a chunk of
+      // empty space after the last one — matches TradingView's default gap.
+      // timeScale's `rightOffset` option does the same thing for *automatic*
+      // positioning (fitContent/scrollToRealTime), but has no effect on an
+      // explicit setVisibleLogicalRange call like this one, so the gap has
+      // to be baked into `to` directly here instead.
+      ts.setVisibleLogicalRange({ from: Math.max(0, n - visible), to: n + RIGHT_GAP_BARS });
     } catch(e) {
       try { chart.timeScale().scrollToRealTime(); } catch(e2) {}
     }
