@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 import db
 import universe
 import sector_etf_map
+import industry_etf_map
 
 
 def main():
@@ -70,12 +71,13 @@ def main():
         conn = db.get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT symbol, sector FROM tickers WHERE is_active=1")
-                tickers = [{"symbol": r[0], "sector": r[1]} for r in cur.fetchall()]
+                cur.execute("SELECT symbol, sector, industry FROM tickers WHERE is_active=1")
+                tickers = [{"symbol": r[0], "sector": r[1], "industry": r[2]} for r in cur.fetchall()]
         finally:
             db.release_conn(conn)
         db.clear_sector_index_map()
         rows = sector_etf_map.build_sector_index_map_rows(tickers)
+        rows += industry_etf_map.build_industry_index_map_rows(tickers)
         db.upsert_sector_index_map(rows)
         unclassified = [t["symbol"] for t in tickers if t["symbol"] not in {r[0] for r in rows}]
         logger.info("Sector map rebuilt: %d stocks -> %d rows, %d unclassified",

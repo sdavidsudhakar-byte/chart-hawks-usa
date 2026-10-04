@@ -832,6 +832,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <div class="tab-row" id="swingCatTabs">
             <button class="tab-pill" onclick="showSwingCat('BROAD')">Broad Market</button>
             <button class="tab-pill active" onclick="showSwingCat('SECTORAL')">Sectoral</button>
+            <button class="tab-pill" onclick="showSwingCat('INDUSTRY')">Industry</button>
           </div>
         </div>
         <div class="dash-nav-sep"></div>
@@ -1634,6 +1635,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <table class="dh-tbl">
           <tr><td><strong>Broad Market</strong></td><td>S&amp;P 500, Nasdaq 100, Dow Jones, Russell 2000 (SPY/QQQ/DIA/IWM).</td></tr>
           <tr><td><strong>Sectoral</strong></td><td>The 11 GICS sectors, via their Sector SPDR ETF (XLK, XLF, XLE, XLV…).</td></tr>
+          <tr><td><strong>Industry</strong></td><td>~24 real industry ETFs one level deeper than sector (Biotech, Semiconductors, Regional Banks, Gold Miners…) — not every industry has a liquid ETF, so coverage is partial but every one listed has real mapped stocks behind it.</td></tr>
         </table>
       </div>
 
@@ -3748,13 +3750,14 @@ let _swingData   = null;
 let _swingPeerScores = {};  // { indexName: {short, mid} } — populated by renderSwingRadar, read by Hunt overlay
 let _swingCat    = 'SECTORAL';
 
-// US index universe is a clean 15-symbol set (4 broad-market + 11 sector SPDR
-// ETFs) with no cross-listed/overlapping categories, so no exclude/extra
-// lists are needed (those existed only for NSE's cross-listed derivative
-// indices like NIFTYBANK/FINNIFTY).
+// US index universe is a clean 39-symbol set (4 broad-market + 11 sector +
+// ~24 industry ETFs) with no cross-listed/overlapping categories, so no
+// exclude/extra lists are needed (those existed only for NSE's cross-listed
+// derivative indices like NIFTYBANK/FINNIFTY).
 const _SWING_CAT_MAP = {
   'BROAD':    ['BROAD MARKET'],
   'SECTORAL': ['SECTORAL'],
+  'INDUSTRY': ['INDUSTRY'],
 };
 const _SWING_EXCLUDE = {};
 const _SWING_EXTRA = {};

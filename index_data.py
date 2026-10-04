@@ -1,9 +1,12 @@
 """
-index_data.py — US sector/broad-market index master list and yfinance OHLCV fetcher.
+index_data.py — US sector/broad-market/industry index master list and
+yfinance OHLCV fetcher.
 
-Replaces the ~80-index Nifty master list with the 11 GICS Sector SPDR ETFs
-(SECTORAL) plus 4 broad-market benchmark ETFs (BROAD MARKET) — see
-sector_etf_map.py for the sector→ETF mapping these are built from.
+Replaces the ~80-index Nifty master list with a 3-tier US structure:
+  BROAD MARKET — 4 broad-market benchmark ETFs
+  SECTORAL     — 11 GICS Sector SPDR ETFs (sector_etf_map.py)
+  INDUSTRY     — ~24 real liquid industry ETFs, one level deeper
+                 (industry_etf_map.py)
 
 Public API:
   ALL_INDICES      — list of IndexInfo namedtuples
@@ -20,6 +23,7 @@ from typing import Generator, NamedTuple
 import db
 import market_data
 import sector_etf_map
+import industry_etf_map
 
 logger = logging.getLogger(__name__)
 
@@ -27,18 +31,19 @@ logger = logging.getLogger(__name__)
 class IndexInfo(NamedTuple):
     symbol:   str    # ETF ticker, e.g. "XLK"
     name:     str    # Display name
-    category: str    # BROAD MARKET | SECTORAL
+    category: str    # BROAD MARKET | SECTORAL | INDUSTRY
 
 
 ALL_INDICES: list[IndexInfo] = (
     [IndexInfo(sym, name, "BROAD MARKET") for name, sym in sector_etf_map.BROAD_MARKET_ETFS.items()]
     + [IndexInfo(sym, sector, "SECTORAL") for sector, sym in sector_etf_map.SECTOR_ETF.items()]
+    + [IndexInfo(sym, name, "INDUSTRY") for name, sym in industry_etf_map.INDUSTRY_ETF.items()]
 )
 
 SYMBOLS: list[str] = [idx.symbol for idx in ALL_INDICES]
 _SYMBOL_MAP: dict[str, IndexInfo] = {idx.symbol: idx for idx in ALL_INDICES}
 
-CATEGORY_ORDER = ["BROAD MARKET", "SECTORAL"]
+CATEGORY_ORDER = ["BROAD MARKET", "SECTORAL", "INDUSTRY"]
 
 
 def by_category() -> dict[str, list[IndexInfo]]:

@@ -40,6 +40,7 @@ import rs as rs_module
 import stock_rs as stock_rs_module
 import run_indicator_backfill as indicators_module
 import sector_etf_map
+import industry_etf_map
 
 try:
     from config import DB_MODE as _DB_MODE
@@ -293,16 +294,19 @@ def shutdown():
 
 def _rebuild_sector_index_map() -> tuple[int, int, list[str]]:
     """Rebuild sector_index_map from each active ticker's GICS sector → Sector
-    SPDR ETF (see sector_etf_map.py). Returns (n_stocks, n_rows, unclassified)."""
+    SPDR ETF (sector_etf_map.py) PLUS, where coverage exists, its industry →
+    industry ETF (industry_etf_map.py) — a stock carries both rows. Returns
+    (n_stocks, n_rows, unclassified) where unclassified = no sector mapping."""
     conn = db.get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT symbol, sector FROM tickers WHERE is_active=1")
-            tickers = [{"symbol": r[0], "sector": r[1]} for r in cur.fetchall()]
+            cur.execute("SELECT symbol, sector, industry FROM tickers WHERE is_active=1")
+            tickers = [{"symbol": r[0], "sector": r[1], "industry": r[2]} for r in cur.fetchall()]
     finally:
         db.release_conn(conn)
     db.clear_sector_index_map()
     rows = sector_etf_map.build_sector_index_map_rows(tickers)
+    rows += industry_etf_map.build_industry_index_map_rows(tickers)
     db.upsert_sector_index_map(rows)
     mapped = {r[0] for r in rows}
     unclassified = [t["symbol"] for t in tickers if t["symbol"] not in mapped]

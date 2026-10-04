@@ -39,8 +39,10 @@ logger = logging.getLogger(__name__)
 Q_BARS = 63   # ~3 months of trading days
 
 # Minimum number of symbols that must have data to compute a valid ranking.
-# NSE's ~80-index universe used 30; the US index universe is only 15 (4
-# broad-market + 11 sector SPDR ETFs), so the floor must fit that population.
+# NSE's ~80-index universe used 30; the US index universe is 39 (4
+# broad-market + 11 sector + ~24 industry ETFs) — kept at 10 (not raised to
+# match the larger universe) so a valid score can still be produced on the
+# very first day new index data lands, before all 39 have 252+ days of history.
 MIN_SYMBOLS_REQUIRED = 10
 
 # Sector Lens tab groupings — mirrors the index.html category tabs. With only
@@ -50,6 +52,7 @@ MIN_SYMBOLS_REQUIRED = 10
 _SWING_GROUPS = {
     "BROAD":    {"cats": {"BROAD MARKET"}, "excl": set(), "extra": set()},
     "SECTORAL": {"cats": {"SECTORAL"},     "excl": set(), "extra": set()},
+    "INDUSTRY": {"cats": {"INDUSTRY"},     "excl": set(), "extra": set()},
 }
 
 
