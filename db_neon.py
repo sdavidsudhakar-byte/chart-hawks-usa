@@ -228,16 +228,42 @@ def init_db():
 
     -- ── IBD RS: daily RS ratings (1-99 percentile rank) ──────────────────────
     CREATE TABLE IF NOT EXISTS index_rs (
-        symbol      TEXT    NOT NULL,
-        date        DATE    NOT NULL,
-        rs_raw      NUMERIC,             -- weighted score before ranking (NULL for early dates with no LT)
-        rs_rating   INT,                -- percentile rank 1-99 (LT score, NULL for early dates)
-        mid_score   INT,                -- RS55 peer rank 1-99 (mid-term)
-        short_score INT,                -- RS21 peer rank 1-99 (short-term)
+        symbol            TEXT    NOT NULL,
+        date              DATE    NOT NULL,
+        rs_raw            NUMERIC,             -- weighted score before ranking (NULL for early dates with no LT)
+        rs_rating         INT,                -- percentile rank 1-99 (LT score, NULL for early dates)
+        mid_score         INT,                -- RS55 peer rank 1-99 (mid-term)
+        short_score       INT,                -- RS21 peer rank 1-99 (short-term)
+        rs21              NUMERIC,
+        rs55              NUMERIC,
+        day_return        NUMERIC,
+        week_return       NUMERIC,
+        close             NUMERIC,
+        group_short_score INT,
+        group_mid_score   INT,
+        group_lt_score    INT,
         PRIMARY KEY (symbol, date)
     );
     CREATE INDEX IF NOT EXISTS idx_index_rs_date   ON index_rs (date);
     CREATE INDEX IF NOT EXISTS idx_index_rs_symbol ON index_rs (symbol);
+
+    -- Add rs21/rs55/day_return/week_return/close/group_* to existing index_rs tables (idempotent)
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='index_rs' AND column_name='rs21'
+        ) THEN
+            ALTER TABLE index_rs ADD COLUMN rs21 NUMERIC;
+            ALTER TABLE index_rs ADD COLUMN rs55 NUMERIC;
+            ALTER TABLE index_rs ADD COLUMN day_return NUMERIC;
+            ALTER TABLE index_rs ADD COLUMN week_return NUMERIC;
+            ALTER TABLE index_rs ADD COLUMN close NUMERIC;
+            ALTER TABLE index_rs ADD COLUMN group_short_score INT;
+            ALTER TABLE index_rs ADD COLUMN group_mid_score INT;
+            ALTER TABLE index_rs ADD COLUMN group_lt_score INT;
+        END IF;
+    END$$;
 
     -- ── Stock RS daily: pre-computed RS21, RS55, RS252 scores per stock per date ─
     CREATE TABLE IF NOT EXISTS stock_rs_daily (

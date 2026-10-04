@@ -38,6 +38,27 @@ BROAD_MARKET_ETFS: dict[str, str] = {
     "Russell 2000":   "IWM",
 }
 
+# yfinance's Ticker.info['sector'] uses Yahoo's own sector taxonomy, which
+# differs from the official GICS sector names Wikipedia's S&P 500 table uses
+# (e.g. "Technology" vs "Information Technology"). Every non-S&P500 stock
+# classified via yfinance comes back with these Yahoo names, so they must be
+# normalized to the canonical GICS name before the SECTOR_ETF join — applied
+# in universe.py at classification time, so tickers.sector is always GICS.
+YAHOO_SECTOR_ALIASES: dict[str, str] = {
+    "Technology":          "Information Technology",
+    "Financial Services":  "Financials",
+    "Healthcare":          "Health Care",
+    "Consumer Cyclical":   "Consumer Discretionary",
+    "Consumer Defensive":  "Consumer Staples",
+    "Basic Materials":     "Materials",
+}
+
+
+def normalize_sector(name: str) -> str:
+    """Translate a Yahoo-taxonomy sector name to its canonical GICS name.
+    Names already in GICS form (or unrecognized) pass through unchanged."""
+    return YAHOO_SECTOR_ALIASES.get(name, name)
+
 
 def build_sector_index_map_rows(tickers: list[dict]) -> list[tuple]:
     """

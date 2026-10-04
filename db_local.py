@@ -294,6 +294,11 @@ def init_db():
         rs_rating         INTEGER,
         mid_score         INTEGER,
         short_score       INTEGER,
+        rs21              REAL,
+        rs55              REAL,
+        day_return        REAL,
+        week_return       REAL,
+        close             REAL,
         group_short_score INTEGER,
         group_mid_score   INTEGER,
         group_lt_score    INTEGER,
@@ -442,6 +447,13 @@ def init_db():
     if "is_active" not in nt_cols:
         conn.execute("ALTER TABLE tickers ADD COLUMN is_active INTEGER DEFAULT 1")
         conn.commit()
+    # Migrate index_rs: add rs21/rs55/day_return/week_return/close if missing
+    ir_cols = {r[1] for r in conn.execute("PRAGMA table_info(index_rs)").fetchall()}
+    for col, coltype in (("rs21", "REAL"), ("rs55", "REAL"), ("day_return", "REAL"),
+                         ("week_return", "REAL"), ("close", "REAL")):
+        if col not in ir_cols:
+            conn.execute(f"ALTER TABLE index_rs ADD COLUMN {col} {coltype}")
+            conn.commit()
 
 
 # ── Indicator tables: upsert + fetch ─────────────────────────────────────────

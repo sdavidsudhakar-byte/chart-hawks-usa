@@ -23,6 +23,8 @@ import pandas as pd
 import requests
 import yfinance as yf
 
+import sector_etf_map
+
 logger = logging.getLogger(__name__)
 
 UNCATEGORIZED = "Uncategorized"
@@ -115,6 +117,7 @@ def fetch_yfinance_classification(symbol: str, retries: int = 2) -> dict:
         try:
             info = yf.Ticker(symbol).get_info()
             sector = (info.get("sector") or "").strip() or UNCATEGORIZED
+            sector = sector_etf_map.normalize_sector(sector)
             industry = (info.get("industry") or "").strip() or UNCATEGORIZED
             name = (info.get("longName") or info.get("shortName") or "").strip()
             return {

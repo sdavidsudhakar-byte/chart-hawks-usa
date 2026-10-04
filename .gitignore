@@ -6,9 +6,14 @@ config.py
 local.db
 local.db-shm
 local.db-wal
+local.db.pre_usa_nse_backup*
 market_data.db
 market_data.db-shm
 market_data.db-wal
+
+# ── Ad-hoc run logs from this session ─────────────────────────────────────────
+*_run.log
+*_run2.log
 
 # ── Python cache ───────────────────────────────────────────────────────────────
 __pycache__/
