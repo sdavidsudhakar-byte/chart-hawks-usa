@@ -705,6 +705,15 @@ def api_status():
         for k in ("started_at", "finished_at"):
             if last_dict.get(k):
                 last_dict[k] = str(last_dict[k])
+        # failed_symbols is stored as a JSON-encoded string column — parse it
+        # to a real list so the frontend's .length reads the symbol count,
+        # not the raw JSON string's character count.
+        fs = last_dict.get("failed_symbols")
+        if isinstance(fs, str):
+            try:
+                last_dict["failed_symbols"] = json.loads(fs)
+            except Exception:
+                last_dict["failed_symbols"] = []
 
     return {"running": state.running, "ticker_count": count, "last_refresh": last_dict}
 

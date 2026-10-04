@@ -1896,13 +1896,13 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
   <div class="page-header" style="margin-bottom:14px;">
     <div>
       <div class="page-title">Settings</div>
-      <div class="page-subtitle">Data refresh · Fyers auth · system config</div>
+      <div class="page-subtitle">Data refresh · system config</div>
     </div>
   </div>
 
   <div class="stats-grid" style="margin-bottom:16px;">
-    <div class="stat-card"><div class="stat-label">Total Tickers</div><div class="stat-value" id="statCount">—</div><div class="stat-sub">nse_tickers table</div></div>
-    <div class="stat-card"><div class="stat-label">Last NSE Refresh</div><div class="stat-value" style="font-size:.9rem;padding-top:3px;" id="statLastRefresh">—</div><div class="stat-sub" id="statLastStatus">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Tickers</div><div class="stat-value" id="statCount">—</div><div class="stat-sub">tickers table</div></div>
+    <div class="stat-card"><div class="stat-label">Last Universe Refresh</div><div class="stat-value" style="font-size:.9rem;padding-top:3px;" id="statLastRefresh">—</div><div class="stat-sub" id="statLastStatus">—</div></div>
     <div class="stat-card"><div class="stat-label">Failed Symbols</div><div class="stat-value" id="statFailed">—</div><div class="stat-sub">in last run</div></div>
     <div class="stat-card"><div class="stat-label">Price Data</div><div class="stat-value" style="font-size:.85rem;padding-top:3px;" id="pricesInfo">—</div><div class="stat-sub">in DB</div></div>
   </div>
@@ -1911,14 +1911,14 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
     <div class="settings-card">
       <div class="settings-title">
         <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        NSE Stocks Refresh
+        US Stocks Refresh
         <span id="statusBadge" class="badge badge-green" style="margin-left:8px;">Ready</span>
       </div>
-      <div class="settings-desc">Downloads all NSE EQ stocks (~2,100 stocks) from EQUITY_L.csv, fetches macro / sector / industry / basic industry / index classifications for every symbol, upserts into Neon PostgreSQL. Takes ~12–15 min. Also runs automatically every Saturday at 2:00 AM IST.</div>
+      <div class="settings-desc">Downloads the US stock universe (S&amp;P 500 + broader Nasdaq/NYSE listings, ~7,100 symbols), classifies every symbol by GICS/Yahoo sector &amp; industry, and rebuilds the sector→ETF map. Takes ~10–15 min for S&amp;P 500 names (instant) plus the rest via yfinance (rate-limited, the slow part). Scheduled to run automatically every Saturday before market open (ET).</div>
       <div class="settings-actions">
         <button id="refreshBtn" class="btn btn-primary" onclick="startRefresh()">
           <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          NSE Stocks Refresh
+          US Stocks Refresh
         </button>
         <button class="btn btn-ghost btn-sm" onclick="forceResetState()" title="Clear stuck running flag">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1938,15 +1938,11 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Price Data Refresh
       </div>
-      <div class="settings-desc">Fetches 1-year daily OHLCV + 100-day 60M intraday from Fyers for all stocks and indices, then computes IBD RS ratings. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
+      <div class="settings-desc">Fetches the last 366 days of daily OHLCV + 100-day 60-minute intraday from yfinance for every stock and sector/broad-market ETF (tops up on top of the one-time multi-year historical seed — it does not re-fetch years of history), then recomputes EMA20/50 + SMA200 + RS line for the last 5 trading days and IBD RS ratings. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
       <div class="settings-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="priceRefreshBtn" class="btn btn-cyan" onclick="startPriceRefresh(false)">
           <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           Refresh Prices + Index + RS
-        </button>
-        <button id="flashRefreshBtn" class="btn btn-green" onclick="startPriceRefresh(true)" title="Incremental refresh — fetches only new bars per symbol. Use daily / during market hours. Weekend full refresh remains the ground-truth resync.">
-          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          Flash Price Refresh
         </button>
       </div>
       <div id="priceProgressWrap" style="display:none;margin-top:12px;">
