@@ -1933,7 +1933,8 @@ def api_stock_rs(symbols: str = ""):
             "SELECT symbol, close FROM ohlcv_daily WHERE date = ?", (as_of,)
         ).fetchall()
         for _cr in _close_rows:
-            _close_map[_cr["symbol"]] = round(float(_cr["close"]), 2)
+            if _cr["close"] is not None:
+                _close_map[_cr["symbol"]] = round(float(_cr["close"]), 2)
 
         _cutoff52 = (
             _dt52.date.fromisoformat(str(as_of)[:10]) - _dt52.timedelta(days=365)
@@ -1943,7 +1944,8 @@ def api_stock_rs(symbols: str = ""):
             (_cutoff52,),
         ).fetchall()
         for _wr in _w52_rows:
-            _w52_map[_wr["symbol"]] = (round(float(_wr["w52h"]), 2), round(float(_wr["w52l"]), 2))
+            if _wr["w52h"] is not None and _wr["w52l"] is not None:
+                _w52_map[_wr["symbol"]] = (round(float(_wr["w52h"]), 2), round(float(_wr["w52l"]), 2))
 
         # Weekly EMA20 > EMA50 flag from latest week in indicator_weekly
         _wema_rows = _ocon.execute(
