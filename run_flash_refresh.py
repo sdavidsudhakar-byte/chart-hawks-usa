@@ -2,19 +2,22 @@
 run_flash_refresh.py — Fast INCREMENTAL data fetch for GitHub Actions.
 
 The "Flash Price Refresh" CLI companion to run_price_refresh.py, for the
-daily / market-hours cadence. Same 7-step sequence, but:
+daily / market-hours cadence. Same sequence, but:
 
-  1. Stock daily OHLCV   — INCREMENTAL: only new bars/symbol (+5-day overlap)
-  2. Stock 60M intraday  — 100 days, all symbols (unchanged)
-  3. Index daily + 60M   — full index refresh (15 sector/broad-market ETFs; cheap) — NO purge
-  4. EMA20/50, SMA200, RS line (last 5 trading days only — see run_incremental)
-  5. IBD RS compute + 5-day backfill (narrowed from 30)
-  6. Stock RS compute (only missing dates)
-  7. Summary email
+  1. Stock daily OHLCV — INCREMENTAL: only new bars/symbol (+5-day overlap)
+  2. Index daily OHLCV — full index refresh (~39 broad-market/sector/industry
+     ETFs; cheap) — NO purge
+  3. EMA20/50, SMA200, RS line (last 5 trading days only — see run_incremental)
+  4. IBD RS compute + 5-day backfill (narrowed from 30)
+  5. Stock RS compute (only missing dates)
+  6. Summary email
 
-Never purges history. Writes merge by (symbol,date)/(symbol,ts), so this is
-safe to run alongside/between the weekend full run_price_refresh.py, which
-remains the ground-truth resync.
+No intraday/60m fetch — retired along with the hourly cycle scanner since
+this product runs on a monthly cadence.
+
+Never purges history. Writes merge by (symbol,date), so this is safe to run
+alongside/between the weekend full run_price_refresh.py, which remains the
+ground-truth resync.
 """
 
 import logging
@@ -41,8 +44,8 @@ _RS_BACKFILL_DAYS = 5  # incremental window for Flash
 def main():
     db.init_db()
 
-    # ── 1 + 2: Stock daily (incremental) + 60M intraday ──────────────────────
-    logger.info("Starting FLASH stock price refresh (incremental daily + 60M)...")
+    # ── 1: Stock daily OHLCV (incremental) ────────────────────────────────────
+    logger.info("Starting FLASH stock price refresh (incremental daily)...")
     price_success = 0
     price_failed  = []
 
@@ -53,16 +56,12 @@ def main():
                 rows = event.get("rows", [])
                 if rows:
                     db.upsert_ohlcv_daily(rows)
-            elif etype == "intraday_batch":
-                rows = event.get("rows", [])
-                if rows:
-                    db.upsert_ohlcv_intraday(rows)
             elif etype == "price_progress":
                 if event.get("current", 0) % 200 == 0:
-                    logger.info("[%d/%d] %s — %d daily bars, %d intraday bars (%s)",
+                    logger.info("[%d/%d] %s — %d daily bars (%s)",
                                 event["current"], event.get("total", "?"),
                                 event.get("symbol", ""), event.get("bars", 0),
-                                event.get("intraday_bars", 0), event.get("status", ""))
+                                event.get("status", ""))
             elif etype == "price_done":
                 price_success = event.get("success", 0)
                 price_failed  = event.get("failed", [])
@@ -79,8 +78,8 @@ def main():
     if price_failed:
         logger.warning("Failed symbols: %s", price_failed[:20])
 
-    # ── 3: Index daily + 60M intraday ────────────────────────────────────────
-    logger.info("Starting index price refresh (daily + 60M)...")
+    # ── 2: Index daily OHLCV ──────────────────────────────────────────────────
+    logger.info("Starting index price refresh (daily)...")
     index_success = 0
     index_failed  = []
 
@@ -88,10 +87,10 @@ def main():
         for event in index_data_module.run_index_refresh():
             etype = event.get("type")
             if etype == "progress":
-                logger.info("[%d/%d] %-45s daily=%d 60M=%d (%s)",
+                logger.info("[%d/%d] %-45s daily=%d (%s)",
                             event.get("current", 0), event.get("total", 0),
                             event.get("symbol", ""), event.get("candles", 0),
-                            event.get("intraday_candles", 0), event.get("status", ""))
+                            event.get("status", ""))
             elif etype == "done":
                 index_success = event.get("success", 0)
                 index_failed  = event.get("failed", [])
@@ -106,7 +105,7 @@ def main():
     if index_failed:
         logger.warning("Failed index symbols: %s", index_failed)
 
-    # ── 4: EMA20/50, SMA200, RS line (last 5 trading days) ───────────────────
+    # ── 3: EMA20/50, SMA200, RS line (last 5 trading days) ───────────────────
     logger.info("Computing indicators (EMA20/50, SMA200, RS line, weekly candles)...")
     try:
         ind_result = indicators_module.run_incremental()
@@ -117,7 +116,7 @@ def main():
     except Exception as e:
         logger.exception("Indicator backfill failed: %s", e)
 
-    # ── 5: IBD RS compute + incremental backfill ─────────────────────────────
+    # ── 4: IBD RS compute + incremental backfill ─────────────────────────────
     logger.info("Computing IBD RS ratings...")
     try:
         result = rs_module.compute_and_store_rs()
@@ -142,7 +141,7 @@ def main():
     except Exception as e:
         logger.exception("Index mid/short backfill failed: %s", e)
 
-    # ── 6: Stock RS compute (only missing dates) ─────────────────────────────
+    # ── 5: Stock RS compute (only missing dates) ─────────────────────────────
     logger.info("Computing stock RS (RS21/RS55/RS252 ranks)...")
     try:
         sr_dates = stock_rs_module.get_dates_to_compute(backfill_days=_RS_BACKFILL_DAYS)
@@ -155,7 +154,7 @@ def main():
     except Exception as e:
         logger.exception("Stock RS computation failed: %s", e)
 
-    # ── 7: Email summary ──────────────────────────────────────────────────────
+    # ── 6: Email summary ──────────────────────────────────────────────────────
     logger.info("Sending Flash summary email...")
     try:
         notifier.send_summary(

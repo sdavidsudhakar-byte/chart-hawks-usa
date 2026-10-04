@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 import db
 import scanner as scanner_module
-import hourly_scanner as hourly_scanner_module
 import notifier
 
 
@@ -34,14 +33,6 @@ def main():
     except Exception as e:
         logger.exception("Scanner failed: %s", e)
         sys.exit(1)
-
-    # ── Hourly cycle enrichment ───────────────────────────────────────────────
-    logger.info("Starting hourly cycle scan...")
-    try:
-        hourly_result = hourly_scanner_module.run_hourly_scan()
-        logger.info("Hourly cycle scan done: %s", hourly_result)
-    except Exception as e:
-        logger.exception("Hourly cycle scan failed: %s", e)
 
     # ── Email summary ─────────────────────────────────────────────────────────
     logger.info("Sending scanner summary email...")

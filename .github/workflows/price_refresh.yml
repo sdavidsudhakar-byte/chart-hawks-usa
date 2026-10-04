@@ -40,7 +40,7 @@ jobs:
         run: |
           [ -n "$DATABASE_URL" ] && echo "DATABASE_URL: set" || echo "DATABASE_URL: MISSING"
 
-      - name: Run unified price refresh — stocks + index daily + 60M + IBD RS (attempt 1)
+      - name: Run unified price refresh — stocks + index daily + IBD RS (attempt 1)
         id: attempt1
         run: python run_price_refresh.py
         continue-on-error: true

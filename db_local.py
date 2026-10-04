@@ -172,6 +172,11 @@ def init_db():
     if srl_cols and "hits_bull" not in srl_cols:
         conn.execute("DROP TABLE IF EXISTS scanner_run_log")
         conn.commit()
+    # Hourly intraday data retired (monthly cadence usage made it dead weight —
+    # heaviest per-symbol fetch in every refresh, and nothing reads it anymore).
+    conn.execute("DROP TABLE IF EXISTS ohlcv_intraday")
+    conn.execute("DROP TABLE IF EXISTS indicator_hourly")
+    conn.commit()
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS tickers (
         symbol          TEXT PRIMARY KEY,
@@ -274,18 +279,18 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_ohlcv_daily_date     ON ohlcv_daily (date);
     CREATE INDEX IF NOT EXISTS idx_ohlcv_daily_sym_date ON ohlcv_daily (symbol, date);
 
-    CREATE TABLE IF NOT EXISTS ohlcv_intraday (
+    CREATE TABLE IF NOT EXISTS ohlcv_monthly (
         symbol  TEXT    NOT NULL,
-        ts      INTEGER NOT NULL,
+        month   TEXT    NOT NULL,
         open    REAL,
         high    REAL,
         low     REAL,
         close   REAL,
         volume  INTEGER,
-        PRIMARY KEY (symbol, ts)
+        PRIMARY KEY (symbol, month)
     );
-    CREATE INDEX IF NOT EXISTS idx_ohlcv_intraday_symbol ON ohlcv_intraday (symbol);
-    CREATE INDEX IF NOT EXISTS idx_ohlcv_intraday_ts     ON ohlcv_intraday (ts);
+    CREATE INDEX IF NOT EXISTS idx_ohlcv_monthly_symbol ON ohlcv_monthly (symbol);
+    CREATE INDEX IF NOT EXISTS idx_ohlcv_monthly_month  ON ohlcv_monthly (month);
 
     CREATE TABLE IF NOT EXISTS index_rs (
         symbol            TEXT    NOT NULL,
@@ -363,17 +368,17 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_ind_weekly_symbol ON indicator_weekly (symbol);
     CREATE INDEX IF NOT EXISTS idx_ind_weekly_week   ON indicator_weekly (week);
 
-    CREATE TABLE IF NOT EXISTS indicator_hourly (
-        symbol   TEXT    NOT NULL,
-        ts       INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS indicator_monthly (
+        symbol   TEXT  NOT NULL,
+        month    TEXT  NOT NULL,
         ema20    REAL,
         ema50    REAL,
         sma200   REAL,
         rs_line  REAL,
-        PRIMARY KEY (symbol, ts)
+        PRIMARY KEY (symbol, month)
     );
-    CREATE INDEX IF NOT EXISTS idx_ind_hourly_symbol ON indicator_hourly (symbol);
-    CREATE INDEX IF NOT EXISTS idx_ind_hourly_ts     ON indicator_hourly (ts);
+    CREATE INDEX IF NOT EXISTS idx_ind_monthly_symbol ON indicator_monthly (symbol);
+    CREATE INDEX IF NOT EXISTS idx_ind_monthly_month  ON indicator_monthly (month);
 
     CREATE TABLE IF NOT EXISTS sector_index_map (
         symbol        TEXT NOT NULL,
@@ -506,18 +511,34 @@ def upsert_indicator_weekly(rows: list[dict]):
     conn.commit()
 
 
-def upsert_indicator_hourly(rows: list[dict]):
-    """rows: [{symbol, ts, ema20, ema50, sma200, rs_line}]"""
+def upsert_ohlcv_monthly(rows: list[dict]):
+    """rows: [{symbol, month, open, high, low, close, volume}]"""
     if not rows:
         return
     conn = _get_conn()
     conn.executemany(
-        """INSERT INTO indicator_hourly (symbol,ts,ema20,ema50,sma200,rs_line)
+        """INSERT INTO ohlcv_monthly (symbol,month,open,high,low,close,volume)
+           VALUES (?,?,?,?,?,?,?)
+           ON CONFLICT(symbol,month) DO UPDATE SET
+               open=excluded.open, high=excluded.high, low=excluded.low,
+               close=excluded.close, volume=excluded.volume""",
+        [(r["symbol"],r["month"],r["open"],r["high"],r["low"],r["close"],r["volume"]) for r in rows]
+    )
+    conn.commit()
+
+
+def upsert_indicator_monthly(rows: list[dict]):
+    """rows: [{symbol, month, ema20, ema50, sma200, rs_line}]"""
+    if not rows:
+        return
+    conn = _get_conn()
+    conn.executemany(
+        """INSERT INTO indicator_monthly (symbol,month,ema20,ema50,sma200,rs_line)
            VALUES (?,?,?,?,?,?)
-           ON CONFLICT(symbol,ts) DO UPDATE SET
+           ON CONFLICT(symbol,month) DO UPDATE SET
                ema20=excluded.ema20, ema50=excluded.ema50,
                sma200=excluded.sma200, rs_line=excluded.rs_line""",
-        [(r["symbol"],r["ts"],r.get("ema20"),r.get("ema50"),r.get("sma200"),r.get("rs_line")) for r in rows]
+        [(r["symbol"],r["month"],r.get("ema20"),r.get("ema50"),r.get("sma200"),r.get("rs_line")) for r in rows]
     )
     conn.commit()
 
@@ -737,53 +758,6 @@ def purge_old_prices(keep_days: int = 2400, exclude_symbols: list[str] | None = 
     deleted = conn.total_changes
     conn.commit()
     return deleted
-
-
-# ── OHLCV intraday ────────────────────────────────────────────────────────────
-
-def upsert_ohlcv_intraday(rows: list[dict]):
-    if not rows:
-        return
-    conn = _get_conn()
-    conn.executemany(
-        """INSERT INTO ohlcv_intraday (symbol,ts,open,high,low,close,volume)
-           VALUES (?,?,?,?,?,?,?)
-           ON CONFLICT(symbol,ts) DO UPDATE SET
-             open=excluded.open, high=excluded.high, low=excluded.low,
-             close=excluded.close, volume=excluded.volume""",
-        [(r["symbol"], r["ts"], r.get("open"), r.get("high"),
-          r.get("low"), r.get("close"), r.get("volume")) for r in rows]
-    )
-    conn.commit()
-
-
-def upsert_intraday_prices(rows: list[dict]):
-    upsert_ohlcv_intraday(rows)
-
-
-def purge_old_intraday_prices(keep_days: int = 100):
-    cutoff_epoch = int(time.time()) - keep_days * 86400
-    conn = _get_conn()
-    conn.execute("DELETE FROM ohlcv_intraday WHERE ts < ?", (cutoff_epoch,))
-    deleted = conn.total_changes
-    conn.commit()
-    return deleted
-
-
-def get_intraday_candles(symbol: str, from_epoch: int) -> list[tuple]:
-    conn = _get_conn()
-    return conn.execute(
-        "SELECT ts,open,high,low,close,volume FROM ohlcv_intraday WHERE symbol=? AND ts>=? ORDER BY ts ASC",
-        (symbol, from_epoch)
-    ).fetchall()
-
-
-def get_intraday_candles_range(symbol: str, from_epoch: int, to_epoch: int) -> list[tuple]:
-    conn = _get_conn()
-    return conn.execute(
-        "SELECT ts,open,high,low,close,volume FROM ohlcv_intraday WHERE symbol=? AND ts>=? AND ts<=? ORDER BY ts ASC",
-        (symbol, from_epoch, to_epoch)
-    ).fetchall()
 
 
 # ── Index RS (IBD RS ratings) ─────────────────────────────────────────────────
@@ -1387,20 +1361,3 @@ def delete_journal_entry(entry_id):
     conn = _get_conn()
     conn.execute("DELETE FROM journal_entries WHERE id = ?", (entry_id,))
     conn.commit()
-
-
-# ── Intraday bulk fetch ───────────────────────────────────────────────────────
-
-def get_intraday_candles_bulk(symbols, from_epoch):
-    if not symbols:
-        return {}
-    conn = _get_conn()
-    ph = ",".join(["?"] * len(symbols))
-    rows = conn.execute(
-        f"SELECT symbol, ts, open, high, low, close, volume FROM ohlcv_intraday WHERE symbol IN ({ph}) AND ts >= ? ORDER BY symbol, ts ASC",
-        symbols + [from_epoch]
-    ).fetchall()
-    result = {}
-    for r in rows:
-        result.setdefault(r[0], []).append(r[1:])
-    return result

@@ -1,17 +1,25 @@
 """
 run_indicator_backfill.py — Pre-compute EMA20, EMA50, SMA200, RS line for all
-symbols (stocks + indices) across daily, weekly and hourly timeframes.
+symbols (stocks + indices) across daily, weekly and monthly timeframes.
 
 Stores results in:
   indicator_daily   — one row per (symbol, date)
   indicator_weekly  — one row per (symbol, week/Monday)
-  indicator_hourly  — one row per (symbol, ts)
+  indicator_monthly — one row per (symbol, month/1st)
   ohlcv_weekly      — weekly OHLCV candles resampled from ohlcv_daily
+  ohlcv_monthly     — monthly OHLCV candles resampled from ohlcv_daily
+
+No intraday/hourly fetch or storage — retired along with the hourly cycle
+scanner since this product runs on a monthly cadence; daily history already
+covers everything the chart/indicator pipeline needs, including monthly bars
+(resampled, not fetched separately).
 
 Warmup:
-  Daily  SMA200 → needs 200 daily bars   (~10 months)
-  Weekly SMA200 → needs 200 weekly bars  (~4 years)
-  Hourly SMA200 → needs 200 hourly bars  (~25 trading days)
+  Daily   SMA200 → needs 200 daily bars   (~10 months)
+  Weekly  SMA200 → needs 200 weekly bars  (~4 years)
+  Monthly SMA200 → needs 200 monthly bars (~16.7 years) — won't populate until
+                    enough history accumulates; harmless, same as any other
+                    instrument with insufficient history.
   EMA50/20 computed from bar-1, accurate from bar 50/20 onwards.
 
 Benchmark for RS line: ^GSPC (S&P 500)
@@ -230,47 +238,87 @@ def backfill_weekly(con: sqlite3.Connection, symbols: list, bench_daily_closes: 
 
 # ── Hourly ────────────────────────────────────────────────────────────────────
 
-def backfill_hourly(con: sqlite3.Connection, symbols: list):
-    """Compute and store indicator_hourly for all symbols."""
-    logger.info("Hourly: processing %d symbols", len(symbols))
+def _resample_monthly(dates: list, opens: list, highs: list, lows: list,
+                      closes: list, vols: list) -> dict:
+    """Resample daily OHLCV to monthly (1st-of-month-keyed buckets)."""
+    buckets = defaultdict(lambda: {"o": None, "h": -1e18, "l": 1e18, "c": None, "v": 0})
+    for d, o, h, l, c, v in zip(dates, opens, highs, lows, closes, vols):
+        dt  = datetime.date.fromisoformat(d)
+        mon = dt.replace(day=1).isoformat()
+        bk  = buckets[mon]
+        if bk["o"] is None:
+            bk["o"] = o
+        bk["h"] = max(bk["h"], h)
+        bk["l"] = min(bk["l"], l)
+        bk["c"] = c
+        bk["v"] += int(v or 0)
+    return buckets
 
-    # Build hourly benchmark closes
-    bench_rows = con.execute(
-        "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? AND close IS NOT NULL ORDER BY ts ASC", (BENCH,)
-    ).fetchall()
-    bench_hourly = {r[0]: float(r[1]) for r in bench_rows}
 
-    total = 0
+def backfill_monthly(con: sqlite3.Connection, symbols: list, bench_daily_closes: dict):
+    """Compute and store ohlcv_monthly + indicator_monthly for all symbols.
+    Resampled entirely from ohlcv_daily — no extra fetch, works with whatever
+    daily history is already on disk."""
+    logger.info("Monthly: processing %d symbols", len(symbols))
+
+    # Build monthly benchmark closes using the LAST available day of each month.
+    bench_monthly: dict = {}
+    for date_str, bc in sorted(bench_daily_closes.items()):
+        dt  = datetime.date.fromisoformat(date_str)
+        mon = dt.replace(day=1).isoformat()
+        bench_monthly[mon] = bc  # overwrite every day → ends up as last close of month
+
+    total_ohlcv = total_ind = 0
 
     for i, sym in enumerate(symbols):
         rows = con.execute(
-            "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? AND close IS NOT NULL ORDER BY ts ASC", (sym,)
+            "SELECT date, open, high, low, close, volume FROM ohlcv_daily WHERE symbol=? AND close IS NOT NULL ORDER BY date ASC",
+            (sym,)
         ).fetchall()
         if not rows:
             continue
 
-        tss    = [r[0] for r in rows]
-        closes = [float(r[1]) for r in rows]
+        dates  = [r[0] for r in rows]
+        opens  = [float(r[1] or 0) for r in rows]
+        highs  = [float(r[2] or 0) for r in rows]
+        lows   = [float(r[3] or 0) for r in rows]
+        closes = [float(r[4]) for r in rows]
+        vols   = [int(r[5] or 0) for r in rows]
 
-        ema20, ema50 = _ema_full(closes)
-        sma200       = _sma200_full(closes)
-        bench_arr    = [bench_hourly.get(ts) for ts in tss]
-        rs           = _rs_line(closes, bench_arr)
+        buckets   = _resample_monthly(dates, opens, highs, lows, closes, vols)
+        m_months  = sorted(buckets.keys())
+        m_opens   = [buckets[m]["o"] for m in m_months]
+        m_highs   = [buckets[m]["h"] for m in m_months]
+        m_lows    = [buckets[m]["l"] for m in m_months]
+        m_closes  = [buckets[m]["c"] for m in m_months]
+        m_vols    = [buckets[m]["v"] for m in m_months]
 
-        out = [
-            {"symbol": sym, "ts": ts,
+        ohlcv_rows = [
+            {"symbol": sym, "month": m, "open": o, "high": h,
+             "low": l, "close": c, "volume": v}
+            for m, o, h, l, c, v in zip(m_months, m_opens, m_highs, m_lows, m_closes, m_vols)
+        ]
+        db.upsert_ohlcv_monthly(ohlcv_rows)
+        total_ohlcv += len(ohlcv_rows)
+
+        ema20, ema50 = _ema_full(m_closes)
+        sma200       = _sma200_full(m_closes)
+        bench_arr    = [bench_monthly.get(m) for m in m_months]
+        rs           = _rs_line(m_closes, bench_arr)
+
+        ind_rows = [
+            {"symbol": sym, "month": m,
              "ema20": ema20[j], "ema50": ema50[j],
              "sma200": sma200[j], "rs_line": rs[j]}
-            for j, ts in enumerate(tss)
+            for j, m in enumerate(m_months)
         ]
-
-        db.upsert_indicator_hourly(out)
-        total += len(out)
+        db.upsert_indicator_monthly(ind_rows)
+        total_ind += len(ind_rows)
 
         if (i + 1) % 100 == 0 or (i + 1) == len(symbols):
-            logger.info("  Hourly [%d/%d] done — %d rows upserted so far", i+1, len(symbols), total)
+            logger.info("  Monthly [%d/%d] done — ohlcv=%d ind=%d", i+1, len(symbols), total_ohlcv, total_ind)
 
-    logger.info("Hourly complete: %d rows", total)
+    logger.info("Monthly complete: ohlcv=%d rows, indicators=%d rows", total_ohlcv, total_ind)
 
 
 # ── Entry point (called from main.py / run_price_refresh.py / run_flash_refresh.py) ──
@@ -278,11 +326,11 @@ def backfill_hourly(con: sqlite3.Connection, symbols: list):
 def run_incremental() -> dict:
     """
     Recompute EMA20/50, SMA200 and RS line for every symbol across daily,
-    weekly and hourly, called automatically after every price refresh.
+    weekly and monthly, called automatically after every price refresh.
 
     Despite the name (kept for backward compatibility with existing callers),
     this is NOT scoped to a trailing lookback window — backfill_daily/weekly/
-    hourly always reprocess each symbol's full stored history (cheap: it's a
+    monthly always reprocess each symbol's full stored history (cheap: it's a
     single indexed SELECT + an O(n) EMA/SMA pass per symbol, not a per-row
     fetch), so results stay correct however long the gap since the last run
     — safe for an infrequent (e.g. monthly) refresh cadence, not just daily.
@@ -319,12 +367,12 @@ def run_incremental() -> dict:
         logger.info("STEP 2/3 — Weekly OHLCV + indicators")
         backfill_weekly(con, all_syms, bench_daily)
 
-        logger.info("STEP 3/3 — Hourly indicators")
-        backfill_hourly(con, all_syms)
+        logger.info("STEP 3/3 — Monthly OHLCV + indicators")
+        backfill_monthly(con, all_syms, bench_daily)
 
         # Row counts for SSE status message
         counts = {}
-        for tbl in ["ohlcv_weekly", "indicator_daily", "indicator_weekly", "indicator_hourly"]:
+        for tbl in ["ohlcv_weekly", "ohlcv_monthly", "indicator_daily", "indicator_weekly", "indicator_monthly"]:
             counts[tbl] = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
 
         logger.info("Indicator refresh complete: %s", counts)
@@ -378,13 +426,13 @@ def main():
     backfill_weekly(con, symbols, bench_daily)
 
     logger.info("=" * 60)
-    logger.info("STEP 3/3 — Hourly indicators")
-    backfill_hourly(con, symbols)
+    logger.info("STEP 3/3 — Monthly OHLCV + indicators")
+    backfill_monthly(con, symbols, bench_daily)
 
     logger.info("=" * 60)
     logger.info("All done. Verifying row counts...")
 
-    for tbl in ["ohlcv_weekly", "indicator_daily", "indicator_weekly", "indicator_hourly"]:
+    for tbl in ["ohlcv_weekly", "ohlcv_monthly", "indicator_daily", "indicator_weekly", "indicator_monthly"]:
         cnt  = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
         syms = con.execute(f"SELECT COUNT(DISTINCT symbol) FROM {tbl}").fetchone()[0]
         logger.info("  %-22s rows=%d  symbols=%d", tbl, cnt, syms)

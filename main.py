@@ -33,7 +33,6 @@ import universe
 import market_data as prices_module
 import flash_prices as flash_prices_module
 import scanner as scanner_module
-import hourly_scanner as hourly_scanner_module
 import notifier
 import index_data as index_data_module
 import rs as rs_module
@@ -472,8 +471,8 @@ def _run_price_refresh(flash: bool = False):
     scanner_result = None
 
     try:
-        # ── Phase 1: Stock daily + 60M ────────────────────────────────────────
-        t0 = _phase("P1-Stocks", f"{_label_prefix}Fetching stock prices (daily + 60M intraday)")
+        # ── Phase 1: Stock daily ──────────────────────────────────────────────
+        t0 = _phase("P1-Stocks", f"{_label_prefix}Fetching stock prices (daily)")
         try:
             for event in _p1_source():
                 etype = event.get("type")
@@ -484,14 +483,6 @@ def _run_price_refresh(flash: bool = False):
                             db.upsert_prices(rows)
                         except Exception as e:
                             logger.error("Price upsert failed: %s", e)
-                    continue
-                if etype == "intraday_batch":
-                    rows = event.get("rows", [])
-                    if rows:
-                        try:
-                            db.upsert_intraday_prices(rows)
-                        except Exception as e:
-                            logger.error("Intraday upsert failed: %s", e)
                     continue
                 if etype == "price_done":
                     price_total   = event.get("total", 0)
@@ -505,8 +496,8 @@ def _run_price_refresh(flash: bool = False):
             _phase_fail("P1-Stocks", e, t0)
             raise
 
-        # ── Phase 2: Index daily + 60M ────────────────────────────────────────
-        t0 = _phase("P2-Index", f"Fetching index prices (daily + 60M intraday, {len(index_data_module.SYMBOLS)} indices)")
+        # ── Phase 2: Index daily ──────────────────────────────────────────────
+        t0 = _phase("P2-Index", f"Fetching index prices (daily, {len(index_data_module.SYMBOLS)} indices)")
         try:
             for event in index_data_module.run_index_refresh():
                 etype = event.get("type")
@@ -521,8 +512,8 @@ def _run_price_refresh(flash: bool = False):
             _phase_fail("P2-Index", e, t0)
             raise
 
-        # ── Phase 3: EMA/SMA indicators + weekly OHLCV ───────────────────────
-        t0 = _phase("P3-Indicators", "Computing EMA20/50, SMA200, RS line + weekly candles for all symbols")
+        # ── Phase 3: EMA/SMA indicators + weekly/monthly OHLCV ───────────────
+        t0 = _phase("P3-Indicators", "Computing EMA20/50, SMA200, RS line + weekly/monthly candles for all symbols")
         try:
             ind_result = indicators_module.run_incremental()
             if ind_result.get("ok"):
@@ -531,7 +522,7 @@ def _run_price_refresh(flash: bool = False):
                     f"{ind_result['symbols']} symbols — "
                     f"daily={c.get('indicator_daily',0):,} "
                     f"weekly={c.get('indicator_weekly',0):,} "
-                    f"hourly={c.get('indicator_hourly',0):,} rows", t0)
+                    f"monthly={c.get('indicator_monthly',0):,} rows", t0)
             else:
                 _phase_fail("P3-Indicators", ind_result.get("error") or ind_result.get("reason"), t0)
         except Exception as e:
@@ -587,16 +578,9 @@ def _run_price_refresh(flash: bool = False):
                 _phase_ok("P6-DailyHunt",
                     f"{scanner_result.get('hits_bull', 0)} bull + {scanner_result.get('hits_bear', 0)} bear hits "
                     f"from {scanner_result.get('scanned', 0)} scanned", t0)
-
-                # ── Phase 7: Hourly cycle scanner ─────────────────────────────
-                t0 = _phase("P7-HourlyScan", "Running hourly cycle scanner")
-                hourly_result = hourly_scanner_module.run_hourly_scan()
-                _phase_ok("P7-HourlyScan",
-                    f"{hourly_result.get('processed', 0)} symbols processed", t0)
-
             except Exception as e:
                 logger.error("Scanner failed: %s", e)
-                _phase_fail("P6-DailyHunt" if "P6-DailyHunt" not in phases else "P7-HourlyScan", e, t0)
+                _phase_fail("P6-DailyHunt", e, t0)
             finally:
                 with _scanner_lock:
                     _scanner_running = False
@@ -907,9 +891,6 @@ async def api_run_scanner(request: Request):
             if scanner_result and scanner_result.get("oldest_scan_date"):
                 db.set_app_state("oldest_scan_date", scanner_result["oldest_scan_date"])
             logger.info("Manual scanner: Daily Hunt done — %s", scanner_result)
-            logger.info("Manual scanner: Hourly cycle scan starting...")
-            hourly_scanner_module.run_hourly_scan()
-            logger.info("Manual scanner: Hourly cycle scan done")
         except Exception as e:
             logger.error("Manual scanner failed: %s", e)
             db.scanner_run_finish(run_id, 0, 0, 0, 0, "error")
@@ -1062,11 +1043,6 @@ async def api_scan_signals(request: Request):
                 "s_pullback_date": None,
                 "c_pullback_date": None,
                 "above_200sma": r.get("above_200sma", 0),
-                # carry hourly fields through
-                "_hourly_signals": r.get("hourly_signals", []),
-                "_wh_count":       r.get("wh_count", 0),
-                "_hx_count":       r.get("hx_count", 0),
-                "_latest_hx_ts":   r.get("latest_hx_ts"),
                 "_phase_end_date": r.get("phase_end_date"),
                 "_daily_cross_date": r.get("daily_cross_date"),
             })
@@ -1093,12 +1069,8 @@ async def api_scan_signals(request: Request):
 
         filtered = [r for r in enrich_rows if _passes(r)]
 
-        # Sort by latest_hx_ts DESC (most recent hourly cross first),
-        # then by daily_cross_date DESC
-        filtered.sort(key=lambda r: (
-            r.get("_latest_hx_ts") or 0,
-            r.get("_daily_cross_date") or ""
-        ), reverse=True)
+        # Sort by daily_cross_date DESC (most recent cross first)
+        filtered.sort(key=lambda r: r.get("_daily_cross_date") or "", reverse=True)
 
         # Weekly EMA20 > EMA50 flag + avg daily dollar volume (liquidity filter)
         import sqlite3 as _sq3h
@@ -1153,10 +1125,6 @@ async def api_scan_signals(request: Request):
                 "daily_cross_date": r.get("_daily_cross_date"),
                 "above_200sma":     r.get("above_200sma", 0),
                 "phase_end_date":   r.get("_phase_end_date"),
-                "hourly_signals":   r.get("_hourly_signals", []),
-                "wh_count":         r.get("_wh_count", 0),
-                "hx_count":         r.get("_hx_count", 0),
-                "latest_hx_ts":     r.get("_latest_hx_ts"),
                 "index_list":       r.get("index_list", []),
                 "hawks_mappings":   r.get("hawks_mappings", []),
                 "rs21":             r.get("rs21"),
@@ -2227,83 +2195,14 @@ async def api_save_settings(request: Request):
     return JSONResponse({"ok": True})
 
 
-@app.get("/api/intraday-charts")
-def api_intraday_charts(symbols: str = ""):
-    """
-    Return 60M intraday OHLCV + pre-computed EMA20/50/SMA200 + RS line for up to 200 symbols.
-    Reads indicators from indicator_hourly; OHLCV from ohlcv_intraday (display window only).
-    """
-    sym_list = [s.strip() for s in symbols.split(",") if s.strip()][:200]
-    if not sym_list:
-        return JSONResponse({"error": "symbols required"}, status_code=400)
-
-    import sqlite3 as _sqlite3
-
-    try:
-        con = _sqlite3.connect("local.db")
-        con.row_factory = _sqlite3.Row
-        ph = ",".join(["?"] * len(sym_list))
-
-        # Full history OHLCV
-        ohlcv_rows = con.execute(
-            f"""SELECT symbol, ts, open, high, low, close, volume FROM ohlcv_intraday
-                WHERE symbol IN ({ph})
-                ORDER BY symbol ASC, ts ASC""",
-            sym_list,
-        ).fetchall()
-
-        # Full history pre-computed indicators
-        ind_rows = con.execute(
-            f"""SELECT symbol, ts, ema20, ema50, sma200 FROM indicator_hourly
-                WHERE symbol IN ({ph})
-                ORDER BY symbol ASC, ts ASC""",
-            sym_list,
-        ).fetchall()
-
-        con.close()
-    except Exception as e:
-        logger.error("api_intraday_charts error: %s", e)
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-    from collections import defaultdict
-    grouped_ohlcv: dict = defaultdict(list)
-    for r in ohlcv_rows:
-        grouped_ohlcv[r["symbol"]].append(r)
-
-    grouped_ind: dict = defaultdict(dict)
-    for r in ind_rows:
-        grouped_ind[r["symbol"]][r["ts"]] = r
-
-    out = {}
-    for sym in sym_list:
-        bars = grouped_ohlcv.get(sym, [])
-        inds = grouped_ind.get(sym, {})
-        if len(bars) < 2:
-            continue
-
-        all_ts = [b["ts"] for b in bars]
-        out[sym] = {
-            "o":    [b["open"]   for b in bars],
-            "h":    [b["high"]   for b in bars],
-            "l":    [b["low"]    for b in bars],
-            "c":    [b["close"]  for b in bars],
-            "v":    [b["volume"] for b in bars],
-            "ts":   all_ts,
-            "e20":  [inds[ts]["ema20"]  if ts in inds and inds[ts]["ema20"]  is not None else None for ts in all_ts],
-            "e50":  [inds[ts]["ema50"]  if ts in inds and inds[ts]["ema50"]  is not None else None for ts in all_ts],
-            "s200": [inds[ts]["sma200"] if ts in inds and inds[ts]["sma200"] is not None else None for ts in all_ts],
-        }
-
-    return JSONResponse(out)
-
-
 # ── IBD-style multi-timeframe chart endpoint ──────────────────────────────────
 
 @app.get("/api/multi-chart")
 def api_multi_chart(symbol: str = ""):
     """
-    Return weekly / daily / hourly OHLCV + pre-computed EMA20/50/SMA200 + RS line for one symbol.
-    Reads from ohlcv_weekly, indicator_daily, indicator_weekly, indicator_hourly — no live computation.
+    Return monthly / weekly / daily OHLCV + pre-computed EMA20/50/SMA200 + RS line for one symbol.
+    Reads from ohlcv_weekly, ohlcv_monthly, indicator_daily, indicator_weekly,
+    indicator_monthly — no live computation.
     """
     sym = symbol.strip().upper()
     if not sym:
@@ -2339,15 +2238,15 @@ def api_multi_chart(symbol: str = ""):
             (sym,),
         ).fetchall()
 
-        # ── Hourly OHLCV ─────────────────────────────────────────────────
-        hourly_rows = con.execute(
-            "SELECT ts, open, high, low, close, volume FROM ohlcv_intraday WHERE symbol=? ORDER BY ts ASC",
+        # ── Monthly OHLCV (resampled from daily, pre-computed) ────────────
+        monthly_rows = con.execute(
+            "SELECT month, open, high, low, close, volume FROM ohlcv_monthly WHERE symbol=? ORDER BY month ASC",
             (sym,),
         ).fetchall()
 
-        # ── Hourly indicators (pre-computed) ─────────────────────────────
-        hourly_ind = con.execute(
-            "SELECT ts, ema20, ema50, sma200 FROM indicator_hourly WHERE symbol=? ORDER BY ts ASC",
+        # ── Monthly indicators (pre-computed) ──────────────────────────────
+        monthly_ind = con.execute(
+            "SELECT month, ema20, ema50, sma200, rs_line FROM indicator_monthly WHERE symbol=? ORDER BY month ASC",
             (sym,),
         ).fetchall()
 
@@ -2393,8 +2292,8 @@ def api_multi_chart(symbol: str = ""):
             out["rs"] = rs
         return out
 
-    daily  = _pack_tf(daily_rows,  daily_ind,  "date", has_rs=True)
-    weekly = _pack_tf(weekly_rows, weekly_ind, "week", has_rs=True)
-    hourly = _pack_tf(hourly_rows, hourly_ind, "ts",   has_rs=False) if hourly_rows else None
+    daily   = _pack_tf(daily_rows,   daily_ind,   "date",  has_rs=True)
+    weekly  = _pack_tf(weekly_rows,  weekly_ind,  "week",  has_rs=True)
+    monthly = _pack_tf(monthly_rows, monthly_ind, "month", has_rs=True) if monthly_rows else None
 
-    return JSONResponse({"symbol": sym, "weekly": weekly, "daily": daily, "hourly": hourly})
+    return JSONResponse({"symbol": sym, "monthly": monthly, "weekly": weekly, "daily": daily})

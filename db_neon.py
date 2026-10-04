@@ -212,19 +212,19 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_ohlcv_daily_date     ON ohlcv_daily (date);
     CREATE INDEX IF NOT EXISTS idx_ohlcv_daily_sym_date ON ohlcv_daily (symbol, date);
 
-    -- ── Unified intraday OHLCV (60M): stocks + indices ────────────────────────
-    CREATE TABLE IF NOT EXISTS ohlcv_intraday (
-        symbol     TEXT    NOT NULL,
-        ts         BIGINT  NOT NULL,   -- Unix epoch (UTC) of bar open
-        open       NUMERIC,
-        high       NUMERIC,
-        low        NUMERIC,
-        close      NUMERIC,
-        volume     BIGINT,
-        PRIMARY KEY (symbol, ts)
+    -- ── Monthly OHLCV, resampled from ohlcv_daily (no extra fetch needed) ─────
+    CREATE TABLE IF NOT EXISTS ohlcv_monthly (
+        symbol  TEXT    NOT NULL,
+        month   TEXT    NOT NULL,
+        open    NUMERIC,
+        high    NUMERIC,
+        low     NUMERIC,
+        close   NUMERIC,
+        volume  BIGINT,
+        PRIMARY KEY (symbol, month)
     );
-    CREATE INDEX IF NOT EXISTS idx_ohlcv_intraday_symbol ON ohlcv_intraday (symbol);
-    CREATE INDEX IF NOT EXISTS idx_ohlcv_intraday_ts     ON ohlcv_intraday (ts);
+    CREATE INDEX IF NOT EXISTS idx_ohlcv_monthly_symbol ON ohlcv_monthly (symbol);
+    CREATE INDEX IF NOT EXISTS idx_ohlcv_monthly_month  ON ohlcv_monthly (month);
 
     -- ── IBD RS: daily RS ratings (1-99 percentile rank) ──────────────────────
     CREATE TABLE IF NOT EXISTS index_rs (
@@ -356,17 +356,17 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_ind_weekly_symbol ON indicator_weekly (symbol);
     CREATE INDEX IF NOT EXISTS idx_ind_weekly_week   ON indicator_weekly (week);
 
-    CREATE TABLE IF NOT EXISTS indicator_hourly (
+    CREATE TABLE IF NOT EXISTS indicator_monthly (
         symbol   TEXT    NOT NULL,
-        ts       BIGINT  NOT NULL,
+        month    TEXT    NOT NULL,
         ema20    NUMERIC,
         ema50    NUMERIC,
         sma200   NUMERIC,
         rs_line  NUMERIC,
-        PRIMARY KEY (symbol, ts)
+        PRIMARY KEY (symbol, month)
     );
-    CREATE INDEX IF NOT EXISTS idx_ind_hourly_symbol ON indicator_hourly (symbol);
-    CREATE INDEX IF NOT EXISTS idx_ind_hourly_ts     ON indicator_hourly (ts);
+    CREATE INDEX IF NOT EXISTS idx_ind_monthly_symbol ON indicator_monthly (symbol);
+    CREATE INDEX IF NOT EXISTS idx_ind_monthly_month  ON indicator_monthly (month);
 
     CREATE TABLE IF NOT EXISTS sector_index_map (
         symbol        TEXT NOT NULL,
@@ -417,6 +417,10 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(ddl)
+            # Hourly intraday data retired (monthly cadence usage made it dead
+            # weight — heaviest per-symbol fetch in every refresh, nothing reads it).
+            cur.execute("DROP TABLE IF EXISTS ohlcv_intraday")
+            cur.execute("DROP TABLE IF EXISTS indicator_hourly")
         conn.commit()
     finally:
         release_conn(conn)
@@ -682,14 +686,14 @@ def purge_old_prices(keep_days: int = 2400, exclude_symbols: list[str] | None = 
         release_conn(conn)
 
 
-def upsert_ohlcv_intraday(rows: list[dict]):
-    """Bulk upsert 60M OHLCV into ohlcv_intraday. Works for both stocks and indices."""
+def upsert_ohlcv_monthly(rows: list[dict]):
+    """rows: [{symbol, month, open, high, low, close, volume}]"""
     if not rows:
         return
     sql = """
-    INSERT INTO ohlcv_intraday (symbol, ts, open, high, low, close, volume)
-    VALUES (%(symbol)s, %(ts)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
-    ON CONFLICT (symbol, ts) DO UPDATE SET
+    INSERT INTO ohlcv_monthly (symbol, month, open, high, low, close, volume)
+    VALUES (%(symbol)s, %(month)s, %(open)s, %(high)s, %(low)s, %(close)s, %(volume)s)
+    ON CONFLICT (symbol, month) DO UPDATE SET
         open   = EXCLUDED.open,
         high   = EXCLUDED.high,
         low    = EXCLUDED.low,
@@ -701,51 +705,6 @@ def upsert_ohlcv_intraday(rows: list[dict]):
         with conn.cursor() as cur:
             psycopg2.extras.execute_batch(cur, sql, rows, page_size=500)
         conn.commit()
-    finally:
-        release_conn(conn)
-
-# Legacy alias — prices.py writes via this name
-def upsert_intraday_prices(rows: list[dict]):
-    upsert_ohlcv_intraday(rows)
-
-
-def purge_old_intraday_prices(keep_days: int = 100):
-    """Delete intraday rows older than keep_days from ohlcv_intraday (stocks + indices)."""
-    import time
-    cutoff_epoch = int(time.time()) - keep_days * 86400
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM ohlcv_intraday WHERE ts < %s", (cutoff_epoch,))
-            deleted = cur.rowcount
-        conn.commit()
-        return deleted
-    finally:
-        release_conn(conn)
-
-
-def get_intraday_candles(symbol: str, from_epoch: int) -> list[tuple]:
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT ts, open, high, low, close, volume FROM ohlcv_intraday WHERE symbol = %s AND ts >= %s ORDER BY ts ASC",
-                (symbol, from_epoch),
-            )
-            return cur.fetchall()
-    finally:
-        release_conn(conn)
-
-
-def get_intraday_candles_range(symbol: str, from_epoch: int, to_epoch: int) -> list[tuple]:
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT ts, open, high, low, close, volume FROM ohlcv_intraday WHERE symbol = %s AND ts >= %s AND ts <= %s ORDER BY ts ASC",
-                (symbol, from_epoch, to_epoch),
-            )
-            return cur.fetchall()
     finally:
         release_conn(conn)
 
@@ -960,12 +919,13 @@ def upsert_indicator_weekly(rows: list[dict]):
         release_conn(conn)
 
 
-def upsert_indicator_hourly(rows: list[dict]):
+def upsert_indicator_monthly(rows: list[dict]):
+    """rows: [{symbol, month, ema20, ema50, sma200, rs_line}]"""
     if not rows:
         return
-    sql = """INSERT INTO indicator_hourly (symbol,ts,ema20,ema50,sma200,rs_line)
-             VALUES (%(symbol)s,%(ts)s,%(ema20)s,%(ema50)s,%(sma200)s,%(rs_line)s)
-             ON CONFLICT (symbol,ts) DO UPDATE SET
+    sql = """INSERT INTO indicator_monthly (symbol,month,ema20,ema50,sma200,rs_line)
+             VALUES (%(symbol)s,%(month)s,%(ema20)s,%(ema50)s,%(sma200)s,%(rs_line)s)
+             ON CONFLICT (symbol,month) DO UPDATE SET
                  ema20=EXCLUDED.ema20, ema50=EXCLUDED.ema50,
                  sma200=EXCLUDED.sma200, rs_line=EXCLUDED.rs_line"""
     conn = get_conn()
@@ -975,37 +935,6 @@ def upsert_indicator_hourly(rows: list[dict]):
         conn.commit()
     finally:
         release_conn(conn)
-
-
-def get_intraday_candles_bulk(sym_list: list[str], from_epoch: int) -> dict[str, list[tuple]]:
-    """
-    Load 60M candles for ALL symbols in one query.
-    Returns {symbol: [(ts, open, high, low, close, volume), ...]} sorted oldest first.
-    """
-    if not sym_list:
-        return {}
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            ph = ",".join(["%s"] * len(sym_list))
-            cur.execute(
-                f"""
-                SELECT symbol, ts, open, high, low, close, volume
-                FROM ohlcv_intraday
-                WHERE symbol IN ({ph}) AND ts >= %s
-                ORDER BY symbol, ts ASC
-                """,
-                sym_list + [from_epoch],
-            )
-            rows = cur.fetchall()
-    finally:
-        release_conn(conn)
-
-    from collections import defaultdict
-    result: dict[str, list[tuple]] = defaultdict(list)
-    for r in rows:
-        result[r[0]].append(r[1:])
-    return dict(result)
 
 
 def set_state(key: str, value: str):

@@ -3,13 +3,15 @@ run_price_refresh.py — Unified daily data fetch for GitHub Actions.
 
 Sequence:
   1. Stock daily OHLCV   (366 days, 1 yfinance call each)
-  2. Stock 60m intraday  (100 days, 1 yfinance call each)
-  3. Index daily OHLCV   (366 days, 15 sector/broad-market ETFs) — NO purge
-  4. Index 60m intraday  (100 days, 15 sector/broad-market ETFs)
-  5. EMA20/50, SMA200, RS line (indicator_daily/weekly/hourly) + ohlcv_weekly
-  6. IBD RS compute + 30-day backfill
-  7. Stock RS compute (RS21/RS55/RS252 ranks for the full US universe)
-  8. Summary email
+  2. Index daily OHLCV   (366 days, ~39 broad-market/sector/industry ETFs) — NO purge
+  3. EMA20/50, SMA200, RS line (indicator_daily/weekly/monthly) + ohlcv_weekly/monthly
+     — weekly and monthly bars are resampled from daily, not fetched separately
+  4. IBD RS compute + 30-day backfill
+  5. Stock RS compute (RS21/RS55/RS252 ranks for the full US universe)
+  6. Summary email
+
+No intraday/60m fetch — retired along with the hourly cycle scanner since
+this product runs on a monthly cadence.
 
 Scheduled: every weekday (Mon-Fri) before 9:30 AM ET market open.
 """
@@ -36,8 +38,8 @@ import notifier
 def main():
     db.init_db()
 
-    # ── 1 + 2: Stock daily + 60M intraday ────────────────────────────────────
-    logger.info("Starting stock price refresh (daily + 60M)...")
+    # ── 1: Stock daily OHLCV ──────────────────────────────────────────────────
+    logger.info("Starting stock price refresh (daily)...")
     price_success = 0
     price_failed  = []
 
@@ -48,16 +50,12 @@ def main():
                 rows = event.get("rows", [])
                 if rows:
                     db.upsert_ohlcv_daily(rows)
-            elif etype == "intraday_batch":
-                rows = event.get("rows", [])
-                if rows:
-                    db.upsert_ohlcv_intraday(rows)
             elif etype == "price_progress":
                 if event.get("current", 0) % 100 == 0:
-                    logger.info("[%d/%d] %s — %d daily bars, %d intraday bars (%s)",
+                    logger.info("[%d/%d] %s — %d daily bars (%s)",
                                 event["current"], event.get("total", "?"),
                                 event.get("symbol", ""), event.get("bars", 0),
-                                event.get("intraday_bars", 0), event.get("status", ""))
+                                event.get("status", ""))
             elif etype == "price_done":
                 price_success = event.get("success", 0)
                 price_failed  = event.get("failed", [])
@@ -74,8 +72,8 @@ def main():
     if price_failed:
         logger.warning("Failed symbols: %s", price_failed[:20])
 
-    # ── 3 + 4: Index daily + 60M intraday ────────────────────────────────────
-    logger.info("Starting index price refresh (daily + 60M)...")
+    # ── 2: Index daily OHLCV ──────────────────────────────────────────────────
+    logger.info("Starting index price refresh (daily)...")
     index_success = 0
     index_failed  = []
 
@@ -83,10 +81,10 @@ def main():
         for event in index_data_module.run_index_refresh():
             etype = event.get("type")
             if etype == "progress":
-                logger.info("[%d/%d] %-45s daily=%d 60M=%d (%s)",
+                logger.info("[%d/%d] %-45s daily=%d (%s)",
                             event.get("current", 0), event.get("total", 0),
                             event.get("symbol", ""), event.get("candles", 0),
-                            event.get("intraday_candles", 0), event.get("status", ""))
+                            event.get("status", ""))
             elif etype == "done":
                 index_success = event.get("success", 0)
                 index_failed  = event.get("failed", [])
@@ -101,7 +99,7 @@ def main():
     if index_failed:
         logger.warning("Failed index symbols: %s", index_failed)
 
-    # ── 5: EMA20/50, SMA200, RS line + weekly OHLCV ──────────────────────────
+    # ── 3: EMA20/50, SMA200, RS line + weekly/monthly OHLCV ──────────────────────────
     logger.info("Computing indicators (EMA20/50, SMA200, RS line, weekly candles)...")
     try:
         ind_result = indicators_module.run_incremental()
@@ -112,7 +110,7 @@ def main():
     except Exception as e:
         logger.exception("Indicator backfill failed: %s", e)
 
-    # ── 6: IBD RS compute + backfill ─────────────────────────────────────────
+    # ── 4: IBD RS compute + backfill ─────────────────────────────────────────
     logger.info("Computing IBD RS ratings...")
     try:
         result = rs_module.compute_and_store_rs()
@@ -137,7 +135,7 @@ def main():
     except Exception as e:
         logger.exception("Index mid/short backfill failed: %s", e)
 
-    # ── 7: Stock RS compute ───────────────────────────────────────────────────
+    # ── 5: Stock RS compute ───────────────────────────────────────────────────
     logger.info("Computing stock RS (RS21/RS55/RS252 ranks)...")
     try:
         sr_dates = stock_rs_module.get_dates_to_compute(backfill_days=30)
@@ -150,7 +148,7 @@ def main():
     except Exception as e:
         logger.exception("Stock RS computation failed: %s", e)
 
-    # ── 8: Email summary ──────────────────────────────────────────────────────
+    # ── 6: Email summary ──────────────────────────────────────────────────────
     logger.info("Sending summary email...")
     try:
         notifier.send_summary(

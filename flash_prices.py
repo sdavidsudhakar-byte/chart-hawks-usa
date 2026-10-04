@@ -1,5 +1,5 @@
 """
-flash_prices.py — Fast INCREMENTAL daily+60m OHLCV refresh via yfinance.
+flash_prices.py — Fast INCREMENTAL daily OHLCV refresh via yfinance.
 
 This is the "Flash Price Refresh" companion to market_data.py. It is a
 drop-in alternative for the P1-Stocks phase that fetches only *new* bars per
@@ -11,9 +11,8 @@ Design:
     trailing overlap self-heals bars yfinance revises after the fact.
   * Brand-new symbols (no rows in ohlcv_daily) fall back to a full-history pull
     so they are seeded correctly on first sight.
-  * Intraday 60m fetched for ALL symbols (same scope as the full refresh).
-  * NEVER purges history — merges by (symbol,date)/(symbol,ts), safe to run
-    alongside the full refresh against the same tables.
+  * NEVER purges history — merges by (symbol,date), safe to run alongside the
+    full refresh against the same table.
 
 market_data.py is imported and reused for all the low-level yfinance plumbing
 (rate limiter, fetch helpers, benchmark) — this module only overrides the
@@ -41,7 +40,6 @@ OVERLAP_TRADING_DAYS = 5
 _OVERLAP_CALENDAR_DAYS = OVERLAP_TRADING_DAYS + 4  # + weekend/holiday cushion
 
 _SEED_CALENDAR_DAYS = 366
-INTRADAY_KEEP_DAYS = market_data.INTRADAY_KEEP_DAYS
 
 
 def _incremental_from_date(last_date: str | None, calendar_today: datetime.date) -> str:
@@ -57,7 +55,6 @@ def _incremental_from_date(last_date: str | None, calendar_today: datetime.date)
 def _worker(
     work_queue: "queue.Queue",
     limiter: "market_data._RateLimiter",
-    intraday_from_date: str,
     to_date: str,
     result_queue: "queue.Queue",
 ):
@@ -71,13 +68,11 @@ def _worker(
 
         symbol, from_date = item
         rows = market_data.fetch_daily(limiter, symbol, from_date, to_date)
-        intraday_rows = market_data.fetch_intraday_60m(limiter, symbol, intraday_from_date, to_date)
 
         result_queue.put({
-            "symbol":        symbol,
-            "status":        "ok" if rows else "no_data",
-            "rows":          rows,
-            "intraday_rows": intraday_rows,
+            "symbol": symbol,
+            "status": "ok" if rows else "no_data",
+            "rows":   rows,
         })
         work_queue.task_done()
 
@@ -85,14 +80,13 @@ def _worker(
 def run_flash_refresh() -> Generator[dict, None, None]:
     """
     Generator yielding the same SSE-style events as market_data.run_prices_refresh()
-    (price_batch / intraday_batch / price_progress / price_done), so the existing
-    main.py P1 consumer works unchanged — but fetches incrementally.
+    (price_batch / price_progress / price_done), so the existing main.py P1
+    consumer works unchanged — but fetches incrementally.
     """
     limiter = market_data._RateLimiter(FLASH_RATE_LIMIT_RPS)
 
     calendar_today = market_data._last_trading_day()
     seed_from      = (calendar_today - datetime.timedelta(days=_SEED_CALENDAR_DAYS)).isoformat()
-    intraday_from  = (calendar_today - datetime.timedelta(days=INTRADAY_KEEP_DAYS)).isoformat()
     calendar_str   = calendar_today.isoformat()
 
     yield {"type": "status", "message": f"Fetching {market_data.BENCHMARK_SYMBOL} benchmark (Flash)..."}
@@ -128,7 +122,6 @@ def run_flash_refresh() -> Generator[dict, None, None]:
         "type": "status",
         "message": (f"Flash incremental refresh of {total} symbols "
                     f"({seeded} new/seed, overlap {OVERLAP_TRADING_DAYS}d) "
-                    f"+ 60m ({intraday_from} to {today_str}) "
                     f"({FLASH_WORKERS} threads, {FLASH_RATE_LIMIT_RPS:.0f} req/sec)..."),
     }
 
@@ -145,7 +138,7 @@ def run_flash_refresh() -> Generator[dict, None, None]:
     for wid in range(FLASH_WORKERS):
         t = threading.Thread(
             target=_worker,
-            args=(work_queue, limiter, intraday_from, today_str, result_queue),
+            args=(work_queue, limiter, today_str, result_queue),
             daemon=True,
             name=f"flash-worker-{wid}",
         )
@@ -155,10 +148,8 @@ def run_flash_refresh() -> Generator[dict, None, None]:
     success = 0
     failed: list[str] = []
     daily_batch: list[dict] = []
-    intraday_batch: list[dict] = []
     completed = 0
     DAILY_BATCH_SIZE = 50 * 250
-    INTRADAY_BATCH_SIZE = 50 * 470
 
     while completed < total:
         try:
@@ -171,16 +162,12 @@ def run_flash_refresh() -> Generator[dict, None, None]:
         symbol = result["symbol"]
         status = result["status"]
         rows = result.get("rows", [])
-        intraday_rows = result.get("intraday_rows", [])
 
         if rows:
             daily_batch.extend(rows)
             success += 1
         else:
             failed.append(symbol)
-
-        if intraday_rows:
-            intraday_batch.extend(intraday_rows)
 
         yield {
             "type": "price_progress",
@@ -189,24 +176,17 @@ def run_flash_refresh() -> Generator[dict, None, None]:
             "symbol": symbol,
             "status": status,
             "bars": len(rows),
-            "intraday_bars": len(intraday_rows),
         }
 
         if len(daily_batch) >= DAILY_BATCH_SIZE:
             yield {"type": "price_batch", "rows": daily_batch}
             daily_batch = []
 
-        if len(intraday_batch) >= INTRADAY_BATCH_SIZE:
-            yield {"type": "intraday_batch", "rows": intraday_batch}
-            intraday_batch = []
-
     for t in threads:
         t.join(timeout=10)
 
     if daily_batch:
         yield {"type": "price_batch", "rows": daily_batch}
-    if intraday_batch:
-        yield {"type": "intraday_batch", "rows": intraday_batch}
 
     yield {
         "type": "price_done",

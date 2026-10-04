@@ -1,13 +1,14 @@
 """
-market_data.py — Full daily + hourly OHLCV redownload from yfinance for all US tickers.
+market_data.py — Full daily OHLCV redownload from yfinance for all US tickers.
 Replaces prices.py (Fyers). Same event-stream contract as the old module so
 main.py's /refresh-prices SSE consumer needs no changes.
 
 Strategy
 --------
-* Every run fetches ~1 year of daily history + ~100 days of 60m intraday for
-  ALL symbols — no incremental logic (yfinance has no per-call range limit
-  worth optimizing around for this window size).
+* Every run fetches ~1 year of daily history for ALL symbols — no incremental
+  logic (yfinance has no per-call range limit worth optimizing around for
+  this window size). Weekly/monthly bars are resampled from this daily data,
+  not fetched separately.
 * A thread pool (NUM_WORKERS threads) processes symbols in parallel, throttled
   by a shared token-bucket rate limiter — yfinance is an unofficial scrape of
   Yahoo Finance and will throttle/block aggressive concurrent access.
@@ -18,6 +19,12 @@ Strategy
 Retention
 ---------
 KEEP_CALENDAR_DAYS = 550 calendar days, covers the 300-bar EMA warmup.
+
+Note: 60m intraday fetch/storage was retired (along with the hourly cycle
+scanner) — this product runs on a monthly cadence, so intraday data was pure
+dead weight: the single heaviest per-symbol step in every refresh, fetched
+individually per symbol with no batching, buying signals that were stale
+within hours.
 """
 
 import datetime
@@ -44,7 +51,6 @@ NUM_WORKERS = 6
 RATE_LIMIT_RPS = 3.0
 
 KEEP_CALENDAR_DAYS = 2400
-INTRADAY_KEEP_DAYS = 100
 
 ET = ZoneInfo("America/New_York")
 _NYSE = mcal.get_calendar("NYSE")
@@ -118,29 +124,6 @@ def _history_to_rows(symbol: str, df, to_date: str) -> list[dict]:
     return rows
 
 
-def _intraday_to_rows(symbol: str, df, cutoff_ts: int) -> list[dict]:
-    if df is None or df.empty:
-        return []
-    rows = []
-    for ts, row in df.iterrows():
-        epoch = int(ts.timestamp())
-        if epoch >= cutoff_ts:
-            continue
-        try:
-            rows.append({
-                "symbol": symbol,
-                "ts":     epoch,
-                "open":   float(row["Open"]),
-                "high":   float(row["High"]),
-                "low":    float(row["Low"]),
-                "close":  float(row["Close"]),
-                "volume": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
-            })
-        except Exception:
-            continue
-    return rows
-
-
 def fetch_daily(limiter: _RateLimiter, symbol: str, from_date: str, to_date: str, retries: int = 3) -> list[dict]:
     end = (datetime.date.fromisoformat(to_date) + datetime.timedelta(days=1)).isoformat()
     for attempt in range(1, retries + 1):
@@ -151,21 +134,6 @@ def fetch_daily(limiter: _RateLimiter, symbol: str, from_date: str, to_date: str
         except Exception as e:
             logger.warning("%s: daily fetch failed (attempt %s): %s", symbol, attempt, e)
             time.sleep(1.5 * attempt)
-    return []
-
-
-def fetch_intraday_60m(limiter: _RateLimiter, symbol: str, from_date: str, to_date: str, retries: int = 2) -> list[dict]:
-    end = (datetime.date.fromisoformat(to_date) + datetime.timedelta(days=1)).isoformat()
-    cutoff_dt = datetime.datetime.fromisoformat(end).replace(tzinfo=datetime.timezone.utc)
-    cutoff_ts = int(cutoff_dt.timestamp())
-    for attempt in range(1, retries + 1):
-        limiter.acquire()
-        try:
-            df = yf.Ticker(symbol).history(start=from_date, end=end, interval="60m", auto_adjust=False)
-            return _intraday_to_rows(symbol, df, cutoff_ts)
-        except Exception as e:
-            logger.warning("%s: intraday fetch failed (attempt %s): %s", symbol, attempt, e)
-            time.sleep(1.0 * attempt)
     return []
 
 
@@ -180,7 +148,6 @@ def _worker(
     work_queue: "queue.Queue[str | None]",
     limiter: _RateLimiter,
     from_date: str,
-    intraday_from_date: str,
     to_date: str,
     result_queue: "queue.Queue[dict]",
 ):
@@ -191,13 +158,11 @@ def _worker(
             break
 
         rows = fetch_daily(limiter, symbol, from_date, to_date)
-        intraday_rows = fetch_intraday_60m(limiter, symbol, intraday_from_date, to_date)
 
         result_queue.put({
-            "symbol":        symbol,
-            "status":        "ok" if rows else "no_data",
-            "rows":          rows,
-            "intraday_rows": intraday_rows,
+            "symbol": symbol,
+            "status": "ok" if rows else "no_data",
+            "rows":   rows,
         })
         work_queue.task_done()
 
@@ -208,8 +173,8 @@ def run_prices_refresh() -> Generator[dict, None, None]:
     """
     Generator yielding SSE-style progress events (same shape as prices.py):
       {"type": "status", "message": str}
-      {"type": "price_batch"/"intraday_batch", "rows": list[dict]}
-      {"type": "price_progress", "current", "total", "symbol", "status", "bars", "intraday_bars"}
+      {"type": "price_batch", "rows": list[dict]}
+      {"type": "price_progress", "current", "total", "symbol", "status", "bars"}
       {"type": "price_done", "total", "success", "failed": list[str]}
       {"type": "error", "message": str}
     """
@@ -217,7 +182,6 @@ def run_prices_refresh() -> Generator[dict, None, None]:
 
     calendar_today = _last_trading_day()
     full_from      = _full_history_from_date().isoformat()
-    intraday_from  = (calendar_today - datetime.timedelta(days=INTRADAY_KEEP_DAYS)).isoformat()
     calendar_str   = calendar_today.isoformat()
 
     yield {"type": "status", "message": f"Fetching {BENCHMARK_SYMBOL} benchmark..."}
@@ -248,7 +212,6 @@ def run_prices_refresh() -> Generator[dict, None, None]:
     yield {
         "type":    "status",
         "message": f"Starting full redownload of {total} symbols — daily ({full_from} to {today_str}) "
-                   f"+ 60m ({intraday_from} to {today_str}) "
                    f"({NUM_WORKERS} threads, {RATE_LIMIT_RPS:.0f} req/sec)...",
     }
 
@@ -264,7 +227,7 @@ def run_prices_refresh() -> Generator[dict, None, None]:
     for wid in range(NUM_WORKERS):
         t = threading.Thread(
             target=_worker,
-            args=(work_queue, limiter, full_from, intraday_from, today_str, result_queue),
+            args=(work_queue, limiter, full_from, today_str, result_queue),
             daemon=True,
             name=f"price-worker-{wid}",
         )
@@ -274,10 +237,8 @@ def run_prices_refresh() -> Generator[dict, None, None]:
     success = 0
     failed: list[str] = []
     daily_batch: list[dict] = []
-    intraday_batch: list[dict] = []
     completed = 0
     DAILY_BATCH_SIZE = 50 * 250
-    INTRADAY_BATCH_SIZE = 50 * 470
 
     while completed < total:
         try:
@@ -290,7 +251,6 @@ def run_prices_refresh() -> Generator[dict, None, None]:
         symbol = result["symbol"]
         status = result["status"]
         rows = result.get("rows", [])
-        intraday_rows = result.get("intraday_rows", [])
 
         if rows:
             daily_batch.extend(rows)
@@ -298,34 +258,24 @@ def run_prices_refresh() -> Generator[dict, None, None]:
         else:
             failed.append(symbol)
 
-        if intraday_rows:
-            intraday_batch.extend(intraday_rows)
-
         yield {
-            "type":          "price_progress",
-            "current":       completed,
-            "total":         total,
-            "symbol":        symbol,
-            "status":        status,
-            "bars":          len(rows),
-            "intraday_bars": len(intraday_rows),
+            "type":    "price_progress",
+            "current": completed,
+            "total":   total,
+            "symbol":  symbol,
+            "status":  status,
+            "bars":    len(rows),
         }
 
         if len(daily_batch) >= DAILY_BATCH_SIZE:
             yield {"type": "price_batch", "rows": daily_batch}
             daily_batch = []
 
-        if len(intraday_batch) >= INTRADAY_BATCH_SIZE:
-            yield {"type": "intraday_batch", "rows": intraday_batch}
-            intraday_batch = []
-
     for t in threads:
         t.join(timeout=10)
 
     if daily_batch:
         yield {"type": "price_batch", "rows": daily_batch}
-    if intraday_batch:
-        yield {"type": "intraday_batch", "rows": intraday_batch}
 
     yield {
         "type":    "price_done",

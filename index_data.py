@@ -60,39 +60,37 @@ def get_info(symbol: str) -> IndexInfo | None:
 # ── Fetch windows ─────────────────────────────────────────────────────────────
 
 HISTORY_DAYS = 366
-INTRADAY_DAYS = 100
 
 
 def run_index_refresh() -> Generator[dict, None, None]:
     """
-    Generator that fetches daily + 60m OHLCV for all sector/broad-market ETFs.
+    Generator that fetches daily OHLCV for all sector/broad-market ETFs.
+    Weekly/monthly bars are resampled from this daily data, not fetched
+    separately; no intraday fetch (retired along with the hourly scanner).
 
     Yields event dicts:
       {"type": "status",   "message": str}
       {"type": "progress", "current": int, "total": int, "symbol": str,
-                           "name": str, "status": "ok"|"fail",
-                           "candles": int, "intraday_candles": int}
+                           "name": str, "status": "ok"|"fail", "candles": int}
       {"type": "done",     "total": int, "success": int, "failed": list[str]}
     """
-    yield {"type": "status", "message": "Starting index price refresh (daily + 60m)..."}
+    yield {"type": "status", "message": "Starting index price refresh..."}
 
     limiter = market_data._RateLimiter(market_data.RATE_LIMIT_RPS)
 
-    today         = market_data._last_trading_day()
-    today_str     = today.isoformat()
-    from_date     = (today - datetime.timedelta(days=HISTORY_DAYS)).isoformat()
-    intraday_from = (today - datetime.timedelta(days=INTRADAY_DAYS)).isoformat()
+    today     = market_data._last_trading_day()
+    today_str = today.isoformat()
+    from_date = (today - datetime.timedelta(days=HISTORY_DAYS)).isoformat()
 
     total = len(SYMBOLS)
     success = 0
     failed: list[str] = []
 
-    yield {"type": "status", "message": f"Fetching daily + 60m OHLCV for {total} indices (as of {today_str})..."}
+    yield {"type": "status", "message": f"Fetching daily OHLCV for {total} indices (as of {today_str})..."}
 
     for i, sym in enumerate(SYMBOLS, 1):
         info = _SYMBOL_MAP[sym]
         daily_candles = 0
-        intraday_candles = 0
 
         try:
             rows = market_data.fetch_daily(limiter, sym, from_date, today_str)
@@ -100,16 +98,11 @@ def run_index_refresh() -> Generator[dict, None, None]:
                 db.upsert_index_prices(rows)
                 daily_candles = len(rows)
 
-            irows = market_data.fetch_intraday_60m(limiter, sym, intraday_from, today_str)
-            if irows:
-                db.upsert_ohlcv_intraday(irows)
-                intraday_candles = len(irows)
-
             success += 1
             yield {
                 "type": "progress", "current": i, "total": total,
                 "symbol": sym, "name": info.name, "status": "ok",
-                "candles": daily_candles, "intraday_candles": intraday_candles,
+                "candles": daily_candles,
             }
         except Exception as e:
             logger.warning("Failed to fetch %s: %s", sym, e)
@@ -117,7 +110,7 @@ def run_index_refresh() -> Generator[dict, None, None]:
             yield {
                 "type": "progress", "current": i, "total": total,
                 "symbol": sym, "name": info.name, "status": "fail",
-                "candles": 0, "intraday_candles": 0,
+                "candles": 0,
             }
 
     yield {

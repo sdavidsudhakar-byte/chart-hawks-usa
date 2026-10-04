@@ -235,9 +235,6 @@ tr.sel-row.row-selected td:first-child::before{content:'✓ ';color:var(--text2)
 .hf-btn.hf-active{border-color:var(--blue);color:var(--blue);background:color-mix(in srgb,var(--blue) 10%,transparent);}
 .hf-btn svg{flex-shrink:0;transition:transform .15s;}
 .hf-btn.hf-open svg{transform:rotate(180deg);}
-.hsig-tag-btn{font-size:.68rem;font-weight:700;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text3);cursor:pointer;transition:all .15s;user-select:none;opacity:.7;}
-.hsig-tag-btn:hover{border-color:var(--text2);color:var(--text);opacity:1;}
-.hsig-tag-btn.hsig-active{background:var(--blue);border-color:var(--blue);color:#fff;opacity:1;}
 .hf-badge{background:var(--blue);color:#fff;border-radius:9px;padding:0 5px;font-size:.62rem;font-weight:700;line-height:16px;min-width:16px;text-align:center;}
 .hf-dropdown{position:absolute;top:calc(100% + 5px);left:0;min-width:180px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:9999;padding:5px 0;display:none;}
 .hf-dropdown.hf-open{display:block;}
@@ -1117,11 +1114,15 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0;">
         <button class="btn btn-ghost btn-sm" onclick="_downloadLens()">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download CSV
+          CSV
         </button>
         <button class="btn btn-ghost btn-sm" onclick="_lhrExportTxt()">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export .txt
+          TXT
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="_lhrExportIbkr()" title="IBKR TWS watchlist import format (SYM,SYMBOL,SMART)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          IBKR
         </button>
       </div>
     </div>
@@ -1352,27 +1353,6 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <div class="idx-multi-foot"><span id="scan_ms_basic_industry_count">0 selected</span><button type="button" onclick="scanMsClear('basic_industry')">Clear</button></div>
         </div>
       </div>
-      <!-- Hourly signal filter -->
-      <div class="idx-multi hr-dd" id="scan_hsig_wrap" style="position:relative;">
-        <button type="button" class="hr-dd-btn" id="scan_hsig_btn" onclick="_hsigTogglePanel(event)" style="gap:5px;">
-          <span>H-Signals</span>
-          <span class="hf-badge" id="scan_hsig_badge" style="display:none;"></span>
-          <span class="hr-dd-caret">▾</span>
-        </button>
-        <div class="idx-multi-panel" id="scan_hsig_panel" style="display:none;min-width:180px;padding:10px 12px;">
-          <div style="font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Max H-Cross Level</div>
-          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;" id="scan_hsig_tags">
-            <button onclick="_hsigSelect('H1')"  id="scan_hsig_tag_H1"  class="hsig-tag-btn" data-tag="H1">H1</button>
-            <button onclick="_hsigSelect('H2')"  id="scan_hsig_tag_H2"  class="hsig-tag-btn" data-tag="H2">H2</button>
-            <button onclick="_hsigSelect('H3')"  id="scan_hsig_tag_H3"  class="hsig-tag-btn" data-tag="H3">H3</button>
-            <button onclick="_hsigSelect('H4+')" id="scan_hsig_tag_H4+" class="hsig-tag-btn" data-tag="H4+">H4+</button>
-          </div>
-          <div style="font-size:.62rem;color:var(--text3);margin-bottom:8px;" id="scan_hsig_hint"></div>
-          <div style="display:flex;justify-content:flex-end;">
-            <button onclick="_hsigClear()" style="font-size:.68rem;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 4px;">Clear</button>
-          </div>
-        </div>
-      </div>
       <!-- divider + search -->
       <div class="hr-tb-div"></div>
       <input id="scanSearch" type="text" placeholder="🔍 Search…" class="hr-tb-search" oninput="scanFilterAndRender()">
@@ -1382,11 +1362,15 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0;">
         <button class="btn btn-ghost btn-sm" onclick="_downloadCurrentScanTab()">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download CSV
+          CSV
         </button>
         <button id="wlBtnScan" class="btn btn-ghost btn-sm" onclick="_exportCurrentScanTabTxt()">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export .txt
+          TXT
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="_exportCurrentScanTabIbkr()" title="IBKR TWS watchlist import format (SYM,SYMBOL,SMART)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          IBKR
         </button>
       </div>
     </div>
@@ -1533,7 +1517,6 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
             <col id="sc-col-rs55"  style="width:80px;">
             <col id="sc-col-rs21"  style="width:80px;">
             <col id="sc-col-dsigs" style="width:110px;">
-            <col id="sc-col-hsigs" style="width:200px;">
           </colgroup>
           <thead id="scanMergedThead">
             <tr>
@@ -1551,14 +1534,6 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
                 <div style="font-size:.76rem;font-weight:600;color:var(--text2);">Daily Signals <span id="scSortInd_latest_date" style="font-size:.6rem;color:var(--text3);"></span></div>
                 <span style="font-size:.6rem;font-weight:400;color:var(--text3);">M-H · Daily Cross</span>
                 <span class="col-resizer" data-col="sc-col-dsigs"></span>
-              </th>
-              <th onclick="scanSort('latest_hx_ts')" style="position:relative;padding:5px 6px;text-align:center;cursor:pointer;user-select:none;">
-                <div style="font-size:.76rem;font-weight:600;color:var(--text2);">Hourly Signals <span id="scSortInd_latest_hx_ts" style="font-size:.6rem;color:var(--text3);"></span></div>
-                <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:1px;">
-                  <span style="font-size:.6rem;font-weight:400;color:var(--text3);">W-High · H-Cross (last 30d)</span>
-                  <span onclick="event.stopPropagation();scanSort('hx_count')" style="cursor:pointer;font-size:.59rem;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(63,185,80,.1);color:var(--green);border:1px solid var(--green);" title="Sort by H-Cross count"># <span id="scSortInd_hx_count" style="font-size:.55rem;color:var(--text3);"></span></span>
-                </div>
-                <span class="col-resizer" data-col="sc-col-hsigs"></span>
               </th>
             </tr>
           </thead>
@@ -1940,7 +1915,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Price Data Refresh
       </div>
-      <div class="settings-desc">Fetches the last 366 days of daily OHLCV + 100-day 60-minute intraday from yfinance for every stock and sector/broad-market ETF (tops up on top of the one-time multi-year historical seed — it does not re-fetch years of history), then recomputes EMA20/50 + SMA200 + RS line across each symbol's full history and IBD RS ratings. Safe to run as infrequently as monthly — nothing here is limited to a short lookback window. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
+      <div class="settings-desc">Fetches the last 366 days of daily OHLCV from yfinance for every stock and sector/broad-market/industry ETF (tops up on top of the one-time multi-year historical seed — it does not re-fetch years of history), then recomputes EMA20/50 + SMA200 + RS line across each symbol's full history (daily, weekly, and monthly — the latter two resampled from daily, not fetched separately) and IBD RS ratings. Safe to run as infrequently as monthly — nothing here is limited to a short lookback window. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
       <div class="settings-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="priceRefreshBtn" class="btn btn-cyan" onclick="startPriceRefresh(false)">
           <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
@@ -2045,72 +2020,8 @@ function _updateSigFilterChecks(){
     });
   });
 }
-// ── Hourly signal filter state ────────────────────────────────────────────────
-// Single selected level: null = no filter, else 'H1'|'H2'|'H3'|'H4+'|'H?'
-let _hsigLevel = null;
-const _HSIG_ORDER = ['H1','H2','H3','H4+'];
-
-function _hsigMaxLevel(r) {
-  const nowSec = Date.now() / 1000;
-  const cutoff = nowSec - _getScanDays() * 24 * 3600;
-  let maxN = 0, hasInProg = false;
-  for (const sig of (r.hourly_signals || [])) {
-    if (sig.cross_ts && sig.cross_ts >= cutoff) {
-      if (sig.in_progress) hasInProg = true;
-      else maxN = Math.max(maxN, sig.n || 1);
-    }
-  }
-  if (maxN > 0) return maxN >= 4 ? 'H4+' : 'H' + maxN;
-  if (hasInProg) return 'H?';
-  return null;
-}
-
 function _applySigFilter(rows) {
-  if (!_hsigLevel) return rows;
-  const selIdx = _HSIG_ORDER.indexOf(_hsigLevel);
-  return rows.filter(r => {
-    const lvl = _hsigMaxLevel(r);
-    if (!lvl) return false;
-    const rowIdx = _HSIG_ORDER.indexOf(lvl);
-    return rowIdx >= 0 && rowIdx <= selIdx;
-  });
-}
-
-function _hsigTogglePanel(e) {
-  if (e) e.stopPropagation();
-  _scanMsCloseAll('scan_hsig_panel');
-  const p = document.getElementById('scan_hsig_panel');
-  if (!p) return;
-  const show = p.style.display !== 'block';
-  p.style.display = show ? 'block' : 'none';
-  if (show) setTimeout(() => _fixPanelOverflow('scan_hsig_panel'), 0);
-}
-
-function _hsigSelect(level) {
-  _hsigLevel = _hsigLevel === level ? null : level;
-  _hsigSyncUI();
-  rerenderScanResults();
-}
-
-function _hsigClear() {
-  _hsigLevel = null;
-  _hsigSyncUI();
-  rerenderScanResults();
-}
-
-function _hsigSyncUI() {
-  const selIdx = _hsigLevel ? _HSIG_ORDER.indexOf(_hsigLevel) : -1;
-  document.querySelectorAll('.hsig-tag-btn').forEach(b => {
-    const bIdx = _HSIG_ORDER.indexOf(b.dataset.tag);
-    b.classList.toggle('hsig-active', bIdx >= 0 && bIdx <= selIdx);
-  });
-  const hint  = document.getElementById('scan_hsig_hint');
-  const badge = document.getElementById('scan_hsig_badge');
-  const btn   = document.getElementById('scan_hsig_btn');
-  const hintMap = { H1:'H1 only', H2:'up to H2', H3:'up to H3', 'H4+':'up to H4+' };
-  if (hint)  hint.textContent = _hsigLevel ? hintMap[_hsigLevel] || '' : '';
-  if (badge) { badge.textContent = _hsigLevel || ''; badge.style.display = _hsigLevel ? '' : 'none'; }
-  if (btn)   btn.classList.toggle('hf-active', !!_hsigLevel);
+  return rows;
 }
 
 // ── Stocks Hunt shared toolbar state ──────────────────────────────────────────
@@ -2219,6 +2130,15 @@ function switchPage(id, _wlReturn=false){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   _updateWorkflowNav();
+  if(id==='hawks-stocks-lens' && !_tabSelSynced){
+    // Sector Lens checkboxes changed since the last sync (e.g. user went back to
+    // Sector Lens, edited the selection, then returned via the nav tab instead of
+    // the dedicated "Stocks Lens →" button) — pull the current selection now so
+    // Stocks Lens doesn't keep showing stocks for a stale/old set of sectors.
+    const names = [...new Set([..._eyeSelection, ..._strikeSelection])];
+    if (names.length) { _hrHawksSel = new Set(names); _hrHmUpdateLabel(); }
+    _tabSelSynced = true;
+  }
   if(id==='hawks-stocks-lens' && !_hrData) loadHawksRadar();
   if(id==='hawks-stocks-lens') { _updateHrChips(); hrFilterAndRender(); }
   if(id==='ideas') _updateScanChips();
@@ -2319,13 +2239,21 @@ function _idxCatFor(name){
 }
 function _idxPillClass(name){return _idxCatFor(name)==='BROAD MARKET' ? 'broad' : 'sectoral';}
 
-// Known index/ETF tickers (4 broad-market + 11 sector SPDR ETFs — mirrors
-// index_data.SYMBOLS). Stocks and indices are both plain tickers with no
-// distinguishing prefix/suffix (unlike NSE's "NSE:...-INDEX" convention), so
-// chart-opening / score-lookup code must check membership in this set instead
-// of a string-shape test like `sym.endsWith('-INDEX')`.
+// Known index/ETF tickers — static fallback (4 broad-market + 11 sector SPDR
+// ETFs) for use before _swingData has loaded. Stocks and indices are both
+// plain tickers with no distinguishing prefix/suffix (unlike NSE's
+// "NSE:...-INDEX" convention), so chart-opening / score-lookup code must
+// check membership in this set instead of a string-shape test like
+// `sym.endsWith('-INDEX')`.
 const US_INDEX_SYMBOLS = new Set(['SPY','QQQ','DIA','IWM','XLE','XLB','XLI','XLY','XLP','XLV','XLF','XLK','XLC','XLU','XLRE']);
-function _isIndexSymbol(sym){ return US_INDEX_SYMBOLS.has(String(sym||'').replace(/^\^/,'')); }
+function _isIndexSymbol(sym){
+  const s = String(sym||'').replace(/^\^/,'');
+  if (US_INDEX_SYMBOLS.has(s)) return true;
+  // Covers the Industry tier (and any future tier) without needing this file
+  // touched every time industry_etf_map.py changes.
+  const idx = (typeof _swingData !== 'undefined' && _swingData?.indices) ? _swingData.indices : null;
+  return !!(idx && idx.some(x => x.symbol === s));
+}
 
 /* ── index group classifier for the multi-select picker (2 groups, no dupes) */
 function _idxGroupFor(name){
@@ -3470,7 +3398,7 @@ async function startPriceRefresh(flash=false){
       document.getElementById('priceProgressFill').style.width=pct+'%';
       document.getElementById('priceProgressPct').textContent=pct+'%';
       document.getElementById('priceProgressLabel').textContent=`Index: Fetching ${d.current}/${d.total}`;
-      if(d.status==='fail'||d.current%20===0)_plog(`[Index ${d.current}/${d.total}] ${d.name||d.symbol} — ${d.candles||0}d ${d.intraday_candles||0}i ${d.status==='fail'?'(FAIL)':''}`,d.status==='fail'?'log-fail':'log-ok');
+      if(d.status==='fail'||d.current%20===0)_plog(`[Index ${d.current}/${d.total}] ${d.name||d.symbol} — ${d.candles||0}d ${d.status==='fail'?'(FAIL)':''}`,d.status==='fail'?'log-fail':'log-ok');
     });
     priceEventSource.addEventListener('all_done',e=>{
       done=true;const d=JSON.parse(e.data);
@@ -3480,13 +3408,12 @@ async function startPriceRefresh(flash=false){
       // ── Phase summary table ──────────────────────────────────────────────
       const phases = d.phases || {};
       const phaseLabels = {
-        'P1-Stocks':     'Stock Prices (daily + 60M)',
-        'P2-Index':      'Index Prices (daily + 60M)',
+        'P1-Stocks':     'Stock Prices (daily)',
+        'P2-Index':      'Index Prices (daily)',
         'P3-Indicators': 'EMA/SMA/RS Indicators',
         'P4-IndexRS':    'Index IBD RS Ratings',
         'P5-StockRS':    'Stock RS21/55/252 Ranks',
         'P6-DailyHunt':  'Daily Hunt Scanner',
-        'P7-HourlyScan': 'Hourly Cycle Scanner',
       };
       const box = document.getElementById('priceLogBox');
       const sep = document.createElement('div');
@@ -4610,8 +4537,7 @@ function _hrHistStrip(rank21Arr, histDates, rank55Arr, rank252Arr) {
 
 // Shared RS-ratio renderer. Draws a stock/benchmark RS-ratio line into `svgEl`:
 // 21-EMA smoothing, green where ratio > EMA21 / red where below, faint EMA dash.
-// Used by BOTH the daily RS panel (cd.rs_line) and hourly RS panel (chart.h_rs)
-// so the two always share one formula and one look. Returns false if no data.
+// Returns false if no data.
 function _drawRsRatioPanel(rs, svgEl, OW, OH) {
   if (!svgEl || !rs || rs.every(v => v == null)) { if (svgEl) svgEl.innerHTML = ''; return false; }
   const PAD = 10;
@@ -4992,6 +4918,10 @@ async function _runHrScan() {
 // ── tab multi-select (Eye + Strike) ──
 const _eyeSelection = new Set();
 const _strikeSelection = new Set();
+// Tracks whether Stocks Lens's Hawks filter (_hrHawksSel) reflects the current
+// Sector Lens checkbox selection. Set false on any checkbox change, consumed
+// (and reset true) the next time Stocks Lens is entered — see switchPage().
+let _tabSelSynced = true;
 
 function _applySelToRow(container, name, add) {
   container.querySelectorAll('tr.tab-sel-row').forEach(tr => {
@@ -6356,9 +6286,34 @@ function _lhrExportTxt() {
   showToast(`Downloaded ${items.length} symbols across ${total} file${total > 1 ? 's' : ''}`);
 }
 
+// ── IBKR TWS watchlist import format ──────────────────────────────────────────
+// TWS's "Import Financial Instruments" feature (right-click a watchlist → Import/
+// Export) expects one line per symbol: "SYM,SYMBOL,EXCHANGE" — all caps, SMART
+// routing for US equities/ETFs. No header row. Saved as .csv so Excel opens it
+// cleanly too. https://ibkrguides.com/traderworkstation/import-tickers-from-a-file.htm
+function _downloadIbkrWatchlist(symbols, filenamePrefix) {
+  if (!symbols.length) { showToast('No stocks to export.', true); return; }
+  const lines = symbols.map(s => `SYM,${String(s).toUpperCase()},SMART`);
+  const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8;' });
+  const date = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${filenamePrefix}_ibkr_${date}.csv`;
+  a.click();
+  showToast(`Downloaded ${symbols.length} symbols in IBKR TWS import format`);
+}
+
+function _lhrExportIbkr() {
+  let items = _hrFiltered || [];
+  if (!items.length) { showToast('No results to export.', true); return; }
+  if (_lhrSelection.size > 0) items = items.filter(s => _lhrSelection.has(s.symbol));
+  _downloadIbkrWatchlist(items.map(s => s.symbol), _lhrWlMode ? 'watchlist' : 'lens');
+}
+
 function _updateTabBar() {
   _lensUnlocked = false;
   _huntUnlocked = false;
+  _tabSelSynced = false;
   _updateWorkflowNav();
   _updateTabChips();
 }
@@ -6393,14 +6348,15 @@ function _goToStocksLensFromTab() {
   const names = [...new Set([..._eyeSelection, ..._strikeSelection])];
   if (!names.length) { showToast('Select indices first.', true); return; }
   _lensUnlocked = true;
-  switchPage('hawks-stocks-lens');
-  // Use Hawks Index filter (hawks_mappings) — direct 1-1 name match with Sector Lens rows
+  // Use Hawks Index filter (hawks_mappings) — direct 1-1 name match with Sector Lens rows.
+  // Set this BEFORE switchPage(), since switchPage() renders the chip bar and table
+  // immediately — setting it after left the chip bar showing the previous selection
+  // while the table (rendered later in this function) already reflected the new one.
   _hrHawksSel = new Set(names);
   _hrHmUpdateLabel();
-  if (_hrData) {
-    hrHmRender();
-    hrFilterAndRender();
-  }
+  hrHmRender();
+  _tabSelSynced = true;
+  switchPage('hawks-stocks-lens');
   // loadHawksRadar() (called by switchPage if no data yet) ends with hrFilterAndRender() automatically
 }
 
@@ -6487,11 +6443,6 @@ function _applyDaysFilter(rows){
       if(v<_scanMinDollarVol||v>_scanMaxDollarVol)return false;
     }
     const inW=d=>{if(!d)return false;return d.slice(0,10)>=cutoffStr;};
-    // Also pass rows with a recent hourly cross regardless of daily_cross_date age
-    if(r.latest_hx_ts){
-      const hxDate=new Date(r.latest_hx_ts*1000).toISOString().slice(0,10);
-      if(hxDate>=cutoffStr) return true;
-    }
     return inW(r.m_date)||inW(r.daily_cross_date||r.bull_cross_date)||inW(r.s_pullback_date)||inW(r.c_pullback_date);
   });
 }
@@ -6506,7 +6457,7 @@ function rerenderScanResults(){
 }
 
 // ── Sort helpers ──────────────────────────────────────────────────────────────
-let _scSortCol='latest_hx_ts', _scSortAsc=false;
+let _scSortCol='latest_date', _scSortAsc=false;
 
 function _scanSortRows(rows, col, asc){
   return [...rows].sort((a,b)=>{
@@ -6518,7 +6469,7 @@ function _scanSortRows(rows, col, asc){
   });
 }
 function _updateScSortInds(){
-  ['symbol','rs252_rank','rs55_rank','rs21_rank','latest_date','latest_hx_ts','hx_count'].forEach(c=>{
+  ['symbol','rs252_rank','rs55_rank','rs21_rank','latest_date'].forEach(c=>{
     const el=document.getElementById('scSortInd_'+c); if(!el) return;
     el.textContent=c===_scSortCol?(_scSortAsc?'▲':'▼'):'⇅';
     el.style.color=c===_scSortCol?'var(--accent2)':'var(--text3)';
@@ -6572,7 +6523,7 @@ function _scanMsCloseAll(except){
     if(f===except)return;
     const p=document.getElementById('scan_ms_'+f+'_panel');if(p)p.style.display='none';
   });
-  ['scan_hawks_map_panel','scan_idx_panel','scan_hsig_panel'].forEach(id=>{const p=document.getElementById(id);if(p&&except!==id)p.style.display='none';});
+  ['scan_hawks_map_panel','scan_idx_panel'].forEach(id=>{const p=document.getElementById(id);if(p&&except!==id)p.style.display='none';});
 }
 function scanMsToggle(e,field){
   if(e)e.stopPropagation();
@@ -6736,7 +6687,7 @@ function scanFilterAndRender(){
 }
 // close scan panels on outside click
 document.addEventListener('click',e=>{
-  const panels=['scan_ms_macro_wrap','scan_ms_sector_wrap','scan_ms_industry_wrap','scan_ms_basic_industry_wrap','scan_hawks_map_wrap','scan_idx_wrap','scan_hsig_wrap'];
+  const panels=['scan_ms_macro_wrap','scan_ms_sector_wrap','scan_ms_industry_wrap','scan_ms_basic_industry_wrap','scan_hawks_map_wrap','scan_idx_wrap'];
   panels.forEach(id=>{const wrap=document.getElementById(id);const panel=wrap?.querySelector('.idx-multi-panel');if(panel&&panel.style.display==='block'&&!wrap.contains(e.target))panel.style.display='none';});
 });
 
@@ -6802,6 +6753,16 @@ function _exportCurrentScanTabTxt(){
   }
   showToast(`Downloaded ${formatted.length} symbols across ${total} file${total>1?'s':''}`);
 }
+function _exportCurrentScanTabIbkr(){
+  const rows=_lastScanResults[_huntDirection]||[];
+  if(!rows.length){showToast('No results to export.',true);return;}
+  const rawRows=rows.map(r=>({...r,latest_date:_latestDate(r)}));
+  let merged=_applyScanFilters(_applyDaysFilter(rawRows));
+  if(!merged.length){showToast('No results after filters.',true);return;}
+  const sel=_dhSelection.size>0?_dhSelection:null;
+  if(sel) merged=merged.filter(r=>sel.has(r.symbol));
+  _downloadIbkrWatchlist(merged.map(r=>r.symbol), `scan_${_huntDirection}`);
+}
 
 function _fmtSigDate(d){
   if(!d)return null;
@@ -6864,77 +6825,6 @@ function _buildSignalCell(r, tab='daily'){
   return `<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px;padding:4px;">${chips.join('')}</div>`;
 }
 
-/* Hourly signal cell — W-High + H-Cross chips with IST date+time, last 30 calendar days */
-function _buildHourlySignalCell(r){
-  const dir=r.direction||'bull';
-  const isBull=dir==='bull';
-  const signals=r.hourly_signals||[];
-
-  if(!signals.length){
-    return '<span style="color:var(--text3);font-size:.67rem;padding:4px;">—</span>';
-  }
-
-  const days=_getScanDays();
-  const cutoffDate=_scanCutoffCache[days]||_lastScanResults._oldest_scan_date||null;
-  const cutoff=cutoffDate?new Date(cutoffDate).getTime()/1000:Date.now()/1000-days*24*3600;
-
-  const hCol=isBull?'#3fb950':'#f85149';
-  const wCol='#e3a008';
-
-  // Format unix epoch → IST date+time string
-  function _istFmt(ts){
-    const d=new Date(ts*1000);
-    return d.toLocaleString('en-US',{
-      timeZone:'America/New_York',day:'2-digit',month:'short',
-      hour:'2-digit',minute:'2-digit',hour12:false
-    });
-  }
-  function _istDate(ts){
-    const d=new Date(ts*1000);
-    return d.toLocaleDateString('en-US',{timeZone:'America/New_York',day:'2-digit',month:'short'});
-  }
-  function _istTime(ts){
-    const d=new Date(ts*1000);
-    return d.toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false});
-  }
-
-  const chips=[];
-  for(const sig of signals){
-    const whTs=sig.wh_ts;
-    const hxTs=sig.cross_ts;
-    const inProg=sig.in_progress;
-
-    if(whTs && whTs>=cutoff){
-      const date=_istDate(whTs);
-      chips.push({ts:whTs, html:
-        `<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 5px;border-radius:4px;background:rgba(227,160,8,.12);border:1px solid ${wCol};gap:0px;" title="W-${isBull?'High':'Low'} breach ${_istFmt(whTs)} IST">` +
-        `<span style="color:${wCol};font-weight:700;font-size:.56rem;letter-spacing:.3px;">W-${isBull?'H':'L'}</span>` +
-        `<span style="color:var(--text3);font-size:.53rem;">${date}</span>` +
-        `</span>`
-      });
-    }
-
-    if(hxTs && hxTs>=cutoff){
-      const date=_istDate(hxTs);
-      const label=inProg?'H?':`H${sig.n||''}`;
-      const bg=isBull?'rgba(63,185,80,.12)':'rgba(248,81,73,.12)';
-      chips.push({ts:hxTs, html:
-        `<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 5px;border-radius:4px;background:${bg};border:1px solid ${hCol};gap:0px;" title="Hourly ${isBull?'bull':'bear'} cross ${_istFmt(hxTs)} IST">` +
-        `<span style="color:${hCol};font-weight:700;font-size:.56rem;letter-spacing:.3px;">${label}</span>` +
-        `<span style="color:var(--text3);font-size:.53rem;">${date}</span>` +
-        `</span>`
-      });
-    }
-  }
-
-  if(!chips.length){
-    return '<span style="color:var(--text3);font-size:.67rem;padding:4px;">no recent</span>';
-  }
-
-  chips.sort((a,b)=>a.ts-b.ts);
-  return `<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;padding:4px;">${chips.map(c=>c.html).join('')}</div>`;
-}
-
 function _latestDate(r){
   return [r.m_date,r.daily_cross_date||r.bull_cross_date].filter(Boolean).sort().pop()||'';
 }
@@ -6982,8 +6872,7 @@ async function _renderMergedResults(data, rerender=false){
   if(!rerender){ _dhSelection.clear(); _updateHuntSelCount(); }
 
   const _sigExtra = s=>
-    `<td style="padding:5px 6px;text-align:right;line-height:1.4;">${_buildSignalCell(s)}</td>` +
-    `<td style="padding:5px 6px;text-align:center;line-height:1.4;">${_buildHourlySignalCell(s)}</td>`;
+    `<td style="padding:5px 6px;text-align:right;line-height:1.4;">${_buildSignalCell(s)}</td>`;
   Object.keys(_hrRowCache).forEach(k=>delete _hrRowCache[k]);
 
   // Render table instantly with whatever history is cached; strip cells with no
@@ -7027,15 +6916,14 @@ function _downloadMerged(){
   const selSyms=_dhSelection.size>0?_dhSelection:null;
   if(selSyms) merged=merged.filter(r=>selSyms.has(r.symbol));
   if(!merged.length){showToast('No selected stocks to download.',true);return;}
-  const h=['Symbol','Company','Direction','Macro','Sector','Industry','Hawks Index','RS55','RS21','M-High/Low Date','Daily Cross','WH Count','HX Count','Latest HX'];
+  const h=['Symbol','Company','Direction','Macro','Sector','Industry','Hawks Index','RS55','RS21','M-High/Low Date','Daily Cross'];
   const esc=v=>`"${(v==null?'':String(v)).replace(/"/g,'""')}"`;
   const lines=[h.map(esc).join(','),...merged.map(r=>{
-    const lhx=r.latest_hx_ts?new Date(r.latest_hx_ts*1000).toLocaleString('en-US',{timeZone:'America/New_York',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'';
     return [
       r.symbol,r.company_name,r.direction,r.macro,r.sector,r.industry,
       (r.hawks_mappings||[]).map(m=>m.name).join('; '),
       r.rs55_rank??'',r.rs21_rank??'',
-      r.m_date||'',r.daily_cross_date||'',r.wh_count??'',r.hx_count??'',lhx
+      r.m_date||'',r.daily_cross_date||''
     ].map(esc).join(',');
   })];
   const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
@@ -8172,20 +8060,20 @@ function jrnlExportCSV(){
           <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#d4a017;display:inline-block;border-radius:1px;"></span>EMA20</span>
           <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#1a73e8;display:inline-block;border-radius:1px;"></span>EMA50</span>
           <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#888;display:inline-block;border-radius:1px;"></span>SMA200</span>
-          <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#8899aa;display:inline-block;border-radius:1px;"></span>RS</span>
+          <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#757575;display:inline-block;border-radius:1px;"></span>RS</span>
         </div>
         <div id="ibdChartStatus" style="font-size:.48rem;color:#8c959f;line-height:1.2;margin-top:1px;"></div>
       </div>
     </div>
 
-    <!-- ══ TOP-RIGHT: WEEKLY chart (spans both chart columns) ══ -->
+    <!-- ══ TOP-RIGHT: MONTHLY chart (spans both chart columns) ══ -->
     <div style="grid-area:weekly;background:#fff;display:flex;flex-direction:column;min-height:0;min-width:0;position:relative;">
       <div style="
         display:flex;align-items:center;
         padding:3px 8px;border-bottom:1px solid #e4e7eb;background:#f6f8fa;flex-shrink:0;
       ">
         <span style="visibility:hidden;padding:2px 10px;font-size:.75rem;">✕ Close</span>
-        <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">WEEKLY</span>
+        <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">MONTHLY</span>
         <button onclick="ibdChartClose()" style="
           background:#fff;border:1px solid #d0d7de;color:#57606a;border-radius:5px;
           padding:2px 10px;cursor:pointer;font-size:.75rem;font-weight:600;line-height:1.4;
@@ -8194,21 +8082,23 @@ function jrnlExportCSV(){
       <div id="ibdChartWeekly" style="flex:1;min-height:0;"></div>
     </div>
 
-    <!-- ══ BOTTOM-LEFT: DAILY chart ══ -->
+    <!-- ══ BOTTOM-LEFT: WEEKLY chart ══ -->
     <div style="grid-area:daily;background:#fff;display:flex;flex-direction:column;min-height:0;min-width:0;">
       <div style="text-align:center;padding:3px 0;font-size:.62rem;font-weight:700;
                   color:#57606a;letter-spacing:.08em;border-bottom:1px solid #e4e7eb;
-                  background:#f6f8fa;flex-shrink:0;">DAILY</div>
+                  background:#f6f8fa;flex-shrink:0;">WEEKLY</div>
       <div id="ibdChartDaily" style="flex:1;min-height:0;"></div>
+      <div style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+      <div id="ibdChartDailyRs" style="height:68px;flex-shrink:0;"></div>
     </div>
 
-    <!-- ══ BOTTOM-RIGHT: HOURLY chart ══ -->
+    <!-- ══ BOTTOM-RIGHT: DAILY chart ══ -->
     <div style="grid-area:hourly;background:#fff;display:flex;flex-direction:column;min-height:0;min-width:0;">
       <div style="display:flex;align-items:center;padding:3px 6px;border-bottom:1px solid #e4e7eb;background:#f6f8fa;flex-shrink:0;gap:6px;">
         <button id="ibdLongBtn"  onclick="ibdPositionTool('long')"  style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #2ea043;background:rgba(46,160,67,.12);color:#2ea043;cursor:pointer;line-height:1.4;">▲ Long</button>
         <button id="ibdShortBtn" onclick="ibdPositionTool('short')" style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #f85149;background:rgba(248,81,73,.12);color:#f85149;cursor:pointer;line-height:1.4;">▼ Short</button>
         <button id="ibdClearBtn" onclick="ibdPositionTool('clear')" style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #888;background:transparent;color:#888;cursor:pointer;line-height:1.4;display:none;">✕</button>
-        <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">HOURLY (60M)</span>
+        <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">DAILY</span>
         <span style="font-size:.58rem;color:#888;font-weight:600;">KC</span>
         <input id="ibdKcLength" type="number" min="5" max="200" value="50" title="KC EMA length"
                style="width:36px;font-size:.6rem;padding:1px 3px;border:1px solid #d0d7de;border-radius:3px;background:#fff;color:#24292f;text-align:center;"
@@ -8218,13 +8108,15 @@ function jrnlExportCSV(){
                style="width:36px;font-size:.6rem;padding:1px 3px;border:1px solid #d0d7de;border-radius:3px;background:#fff;color:#24292f;text-align:center;"
                oninput="ibdKcUpdate()">
         <span style="font-size:.58rem;color:#888;font-weight:600;margin-left:4px;">R:R</span>
-        <input id="ibdRrRatio" type="number" min="0.5" max="20" step="0.5" value="2" title="Reward:Risk ratio"
+        <input id="ibdRrRatio" type="number" min="0.5" max="20" step="0.5" value="1.5" title="Reward:Risk ratio"
                style="width:36px;font-size:.6rem;padding:1px 3px;border:1px solid #d0d7de;border-radius:3px;background:#fff;color:#24292f;text-align:center;"
                oninput="ibdRrUpdate()">
         <button id="ibdRsiToggleBtn" onclick="ibdRsiToggle()" title="Toggle RSI pane"
                 style="font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid #9b8ec4;background:transparent;color:#9b8ec4;cursor:pointer;line-height:1.4;margin-left:4px;">RSI</button>
       </div>
       <div id="ibdChartHourly"    style="flex:1;min-height:0;"></div>
+      <div style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+      <div id="ibdChartHourlyRs" style="height:68px;flex-shrink:0;"></div>
       <div id="ibdRsiSep"         style="height:1px;background:#d0d7de;flex-shrink:0;display:none;"></div>
       <div id="ibdChartHourlyRsi" style="height:90px;flex-shrink:0;display:none;"></div>
     </div>
@@ -8246,7 +8138,11 @@ function jrnlExportCSV(){
   const EMA20_COL   = '#d4a017';
   const EMA50_COL   = '#1a73e8';
   const SMA200_COL  = '#888888';
-  const RS_COL      = 'rgba(136,153,170,0.35)'; // always muted
+  const RS_COL      = 'rgba(117,117,117,0.55)'; // muted gray — RS subpanel line, axis labels, legend swatch
+  // Fixed price-scale (axis) gutter width shared by the price chart and the
+  // RS subpanel chart, so their plot areas stay pixel-aligned — see the
+  // minimumWidth comment above priceChart's 'right' scale options.
+  const RS_AXIS_WIDTH = 58;
   const VOL_UP      = 'rgba(38,166,154,0.25)';
   const VOL_DOWN    = 'rgba(239,83,80,0.25)';
   const SIG_MHIGH   = '#e53935';
@@ -8255,8 +8151,8 @@ function jrnlExportCSV(){
   const SIG_SPB     = '#e67e22';
   const SIG_CPB     = '#9b59b6';
 
-  // Default visible bars per timeframe — show last N candles, user can scroll for more
-  const VISIBLE_BARS = { weekly: 150, daily: 100, hourly: 100 };
+  // Default visible bars per timeframe — show last N candles, user can scroll for more.
+  const VISIBLE_BARS = { monthly: 60, weekly: 150, daily: 100 };
 
   const PRICE_OPTS = {
     layout:      { background: { color: BG }, textColor: TEXT_COLOR },
@@ -8265,11 +8161,23 @@ function jrnlExportCSV(){
     // series' own close price, so a synced crosshair would land on each chart's
     // own bar (100/120/150 mismatch). Normal honours the exact price we pass to
     // setCrosshairPosition, letting all three charts show the same price.
-    crosshair:   { mode: 0 },
+    // Label backgrounds: lighter gray instead of the library's near-black
+    // default, which looked harsh against this light-themed chart panel.
+    crosshair: {
+      mode: 0,
+      vertLine: { labelBackgroundColor: '#8c959f' },
+      // Lighter than vertLine's — but not too pale: the label text itself is
+      // rendered white with no separate color option in this library version,
+      // so going much lighter than this would hurt readability.
+      horzLine: { labelBackgroundColor: '#a7b1bd' },
+    },
     rightPriceScale: { borderColor: BORDER, visible: true },
     leftPriceScale:  { visible: false },
+    // rightOffset: TradingView always leaves a few empty bars of breathing
+    // room to the right of the latest candle instead of jamming it against
+    // the axis — this was previously 0 (the library default).
     timeScale:   { borderColor: BORDER, timeVisible: true, secondsVisible: false,
-                   fixLeftEdge: false, fixRightEdge: false },
+                   fixLeftEdge: false, fixRightEdge: false, rightOffset: 5 },
     handleScroll: true, handleScale: true,
   };
 
@@ -8284,7 +8192,7 @@ function jrnlExportCSV(){
   let _chartKeltner      = { lower: [], upper: [] };
   let _kcLength          = 50;   // current KC EMA length (from panel input)
   let _kcMult            = 2;    // current KC ATR multiplier (from panel input)
-  let _rrRatio           = 2;    // current reward:risk ratio (from panel input)
+  let _rrRatio           = 1.5;  // current reward:risk ratio (from panel input)
   let _kcLowerSeries     = null; // live LineSeries for KC lower band (bull)
   let _kcUpperSeries     = null; // live LineSeries for KC upper band (bear)
   let _kcDirection       = 'bull'; // direction of the currently open chart
@@ -8306,7 +8214,7 @@ function jrnlExportCSV(){
     const _ph = document.getElementById('ibdChartHourly');
     if (_ph) _ph.style.cursor = '';
     if (_positionPrimitive) {
-      const h = _charts.find(c => c.timeframe === 'hourly');
+      const h = _charts.find(c => c.priceId === 'ibdChartHourly');
       if (h) try { h.candleSeries.detachPrimitive(_positionPrimitive); } catch(e){}
       _positionPrimitive._detach?.();
       _positionPrimitive = null;
@@ -8315,6 +8223,7 @@ function jrnlExportCSV(){
     }
     _charts.forEach(c => {
       try { c.priceChart.remove(); } catch(e){}
+      try { if (c.rsChart) c.rsChart.remove(); } catch(e){}
       try { if (c.rsiChart) c.rsiChart.remove(); } catch(e){}
     });
     _charts = [];
@@ -8436,36 +8345,60 @@ function jrnlExportCSV(){
       for (let i = 0; i < n; i++) if (arr[i] != null) out.push({ time: d.t[i], value: arr[i] });
       return out;
     };
+    // Like _line(), but keeps a "whitespace" point (time only, no value) for
+    // null entries instead of dropping them — preserves exact 1:1 index
+    // alignment with `candles` (same trick _calcRsi uses for its warmup
+    // bars). RS is rendered on a SEPARATE chart instance (the RS subpanel),
+    // range-synced to price by time — if its array were shorter than
+    // candles' (as _line() would produce whenever even one date has no RS
+    // value, e.g. a stock/benchmark calendar mismatch), lightweight-charts'
+    // even bar-spacing-by-count would visibly shift every point after that
+    // gap by half a bar relative to price. ema20/ema50/sma200 stay on _line()
+    // since they're drawn directly on the price chart itself — no separate
+    // chart to misalign against.
+    const _linePadded = (arr) => {
+      const out = new Array(n);
+      for (let i = 0; i < n; i++) {
+        out[i] = arr[i] != null ? { time: d.t[i], value: arr[i] } : { time: d.t[i] };
+      }
+      return out;
+    };
     const out = { candles, volume, ema20: _line(d.e20), ema50: _line(d.e50), sma200: _line(d.s200) };
-    if (hasRs && d.rs) out.rs = _line(d.rs);
+    if (hasRs && d.rs) out.rs = _linePadded(d.rs);
     return out;
   }
 
   // ── Build price chart (RS line overlaid directly on price pane) ───────────
-  function _buildChart(priceId, data, timeframe, signals, weeklyData) {
+  // `priceId` ('ibdChartWeekly'/'ibdChartDaily'/'ibdChartHourly') names the DOM
+  // pane and is kept stable for historical reasons; `timeframe` ('monthly'/
+  // 'weekly'/'daily') describes what's actually plotted there — pane labels
+  // were bumped a tier (Monthly/Weekly/Daily replacing the old Weekly/Daily/
+  // Hourly) once intraday data was retired. The third pane (ibdChartHourly)
+  // keeps its Keltner/RSI/position-tool extras — those are gated on `priceId`
+  // below, not on `timeframe`, since they're a property of that pane, not of
+  // any particular data granularity.
+  function _buildChart(priceId, data, timeframe, signals, prevTierData) {
     const priceEl = document.getElementById(priceId);
     if (!priceEl || !data || !data.candles || !data.candles.length) return null;
+    const isAdvancedPane = priceId === 'ibdChartHourly';
 
-    // Hourly chart: timestamps are UTC epoch; use a custom formatter so the
-    // axis always shows 09:30…16:00 ET regardless of the browser's local
-    // timezone (and correctly across the EST/EDT DST boundary).
-    const hourlyLocalization = timeframe === 'hourly' ? {
-      localization: {
-        timeFormatter: ts => {
-          const {dd, mon, hh, mm} = _etDateTimeParts(ts);
-          return `${dd} ${mon} ${hh}:${mm}`;
-        },
-      },
-    } : {};
     const priceChart = LightweightCharts.createChart(priceEl, {
       ...PRICE_OPTS,
-      ...hourlyLocalization,
       width: priceEl.clientWidth || 380, height: priceEl.clientHeight || 300,
-      timeScale: { ...PRICE_OPTS.timeScale, timeVisible: timeframe === 'hourly' },
+      timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false },
     });
 
-    // Candles occupy top 72% — bottom 28% reserved so RS never overlaps price.
-    priceChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.02, bottom: 0.28 } });
+    // Candles use TradingView's own canonical price+volume scaleMargins
+    // (from lightweight-charts' official docs: top:0.1/bottom:0.4 for price,
+    // top:0.7/bottom:0 for volume) — this is what "default TradingView look"
+    // actually means for this library, not an arbitrary guess. Previous
+    // margins (top:0.02) left almost no headroom above the highest wick,
+    // which is why price looked crammed against the top of the pane.
+    // Fixed minimumWidth so this scale's label gutter is EXACTLY the same
+    // width as the RS subpanel's — otherwise the two charts' plot areas
+    // (and therefore same-date points) drift out of horizontal alignment,
+    // since each chart would otherwise size its gutter to its own label text.
+    priceChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.4 }, minimumWidth: RS_AXIS_WIDTH });
 
     const candleSeries = priceChart.addCandlestickSeries({
       upColor: CANDLE_UP, downColor: CANDLE_DOWN,
@@ -8487,44 +8420,31 @@ function jrnlExportCSV(){
       }
     });
 
-    // Volume bars in the bottom 18% of the price pane (sits inside RS band)
+    // Volume: also TradingView's own canonical margins for this pairing
+    // (top:0.7/bottom:0 — occupies the bottom 30% of the pane).
     if (data.volume && data.volume.length) {
       const vs = priceChart.addHistogramSeries({
         priceFormat: { type: 'volume' }, priceScaleId: 'vol',
         lastValueVisible: false, priceLineVisible: false,
       });
-      priceChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+      priceChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.7, bottom: 0 } });
       vs.setData(data.volume.map(v => ({
         time: v.time, value: v.value,
         color: v.color === '#26a69a' ? VOL_UP : VOL_DOWN,
       })));
     }
 
-    // RS line overlaid in the bottom 22% — daily and weekly only (not hourly).
-    let rsSeries = null;
-    if (timeframe !== 'hourly' && data.rs && data.rs.length) {
-      // RS occupies bottom 20%, starting at 80% — leaving an 8% gap below price.
-      priceChart.priceScale('rs').applyOptions({
-        scaleMargins: { top: 0.80, bottom: 0.02 },
-        visible: false,
-      });
+    // RS now renders as its own subpanel below this chart (see the
+    // "RS subpanel" block near the end of this function) instead of an
+    // overlay sharing the price pane — a real TradingView-style indicator
+    // pane, not a line squeezed into a margin band.
 
-      rsSeries = priceChart.addLineSeries({
-        priceScaleId: 'rs',
-        color: RS_COL, lineWidth: 1.5,
-        lastValueVisible: false, priceLineVisible: false,
-        crosshairMarkerVisible: false,
-        lineStyle: 0,
-      });
-      rsSeries.setData(data.rs);
-    }
-
-    // Signal markers on candles (pass priceChart for hourly dashed lines)
+    // Signal markers on candles
     if (signals) _addSignalMarkers(candleSeries, data.candles, signals, timeframe, priceChart);
 
-    // ── Hourly-only: Keltner bands on price + RSI true sub-pane ─────────────
+    // ── Advanced pane only: Keltner bands on price + RSI true sub-pane ──────
     let rsiChart = null;
-    if (timeframe === 'hourly') {
+    if (isAdvancedPane) {
       const isBullDir = (signals?.direction || 'bull') === 'bull';
       _kcDirection = isBullDir ? 'bull' : 'bear';
 
@@ -8555,39 +8475,6 @@ function jrnlExportCSV(){
         if (!isBullDir) _kcUpperSeries = ksUpper;
       }
 
-      // Previous week high (bull) / low (bear) — thin muted step-line on price pane.
-      // Each hourly bar shows the HIGH or LOW of the *prior completed* weekly bar.
-      if (weeklyData && weeklyData.candles && weeklyData.candles.length && data.candles.length) {
-        // Build a map: week-start-date → prev week's high or low
-        // weeklyData.candles is sorted ASC; index i gets value from index i-1
-        const prevWkMap = new Map();
-        const wc = weeklyData.candles;
-        for (let i = 1; i < wc.length; i++) {
-          prevWkMap.set(wc[i].time, isBullDir ? wc[i - 1].high : wc[i - 1].low);
-        }
-        // For each hourly bar find its week's Monday (ET calendar date), look up prev week value
-        const wkLine = [];
-        for (const hc of data.candles) {
-          const dUTC = new Date(_etDateStr(hc.time) + 'T00:00:00Z');
-          const dow = dUTC.getUTCDay();
-          const daysToMon = dow === 0 ? -6 : 1 - dow;
-          const mon = new Date(dUTC);
-          mon.setUTCDate(dUTC.getUTCDate() + daysToMon);
-          const monStr = mon.toISOString().slice(0, 10);
-          const val = prevWkMap.get(monStr);
-          if (val != null) wkLine.push({ time: hc.time, value: val });
-        }
-        if (wkLine.length) {
-          const ws = priceChart.addLineSeries({
-            color: isBullDir ? 'rgba(46,160,67,0.35)' : 'rgba(248,81,73,0.35)',
-            lineWidth: 1, priceScaleId: 'right',
-            lastValueVisible: false, priceLineVisible: false,
-            crosshairMarkerVisible: false, lineStyle: 0,
-          });
-          ws.setData(wkLine);
-        }
-      }
-
       // RSI sub-pane: only rendered when user has toggled it on
       const rsiEl = document.getElementById('ibdChartHourlyRsi');
       const rsiData = _calcRsi(data.candles, 14);
@@ -8595,14 +8482,13 @@ function jrnlExportCSV(){
         rsiEl.style.display = '';
         const sepEl2 = document.getElementById('ibdRsiSep');
         if (sepEl2) sepEl2.style.display = '';
-        priceChart.applyOptions({ timeScale: { ...PRICE_OPTS.timeScale, timeVisible: true, visible: true, borderColor: BORDER } });
+        priceChart.applyOptions({ timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, visible: true, borderColor: BORDER } });
 
         rsiChart = LightweightCharts.createChart(rsiEl, {
           ...PRICE_OPTS,
-          ...hourlyLocalization,
           width:  rsiEl.clientWidth  || 380,
           height: rsiEl.clientHeight || 90,
-          timeScale: { ...PRICE_OPTS.timeScale, timeVisible: true, borderColor: BORDER },
+          timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, borderColor: BORDER },
           rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0.1, bottom: 0.1 } },
           leftPriceScale: { visible: false },
           grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
@@ -8649,8 +8535,123 @@ function jrnlExportCSV(){
       }
     }
 
+    // ── RS subpanel — a real indicator pane below price+volume, like
+    // TradingView, instead of a line squeezed into the price pane's margins.
+    // weekly and daily only (not monthly). Always visible (unlike the RSI
+    // pane, which is opt-in via its toggle button).
+    let rsChart = null, rsSeries = null;
+    if (timeframe !== 'monthly' && data.rs && data.rs.length) {
+      const rsEl = document.getElementById(priceId + 'Rs');
+      if (rsEl) {
+        rsChart = LightweightCharts.createChart(rsEl, {
+          ...PRICE_OPTS,
+          width:  rsEl.clientWidth  || 380,
+          height: rsEl.clientHeight || 68,
+          timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, borderColor: BORDER },
+          // No horizontal crosshair line/price label here — the vertical
+          // (date) line is enough for this thin panel, and its own date
+          // badge is redundant with the price pane's directly above it;
+          // value is already visible via the floating last-value badge.
+          crosshair: {
+            ...PRICE_OPTS.crosshair,
+            vertLine: { ...PRICE_OPTS.crosshair.vertLine, labelVisible: false },
+            horzLine: { visible: false },
+          },
+          // Zero margins so the line actually touches the top and bottom
+          // edges of the pane instead of floating in a padded band.
+          // minimumWidth matches the price chart's — see RS_AXIS_WIDTH.
+          rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0, bottom: 0 }, minimumWidth: RS_AXIS_WIDTH },
+          leftPriceScale: { visible: false },
+          grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
+        });
+
+        rsSeries = rsChart.addLineSeries({
+          color: RS_COL, lineWidth: 1,
+          lastValueVisible: true, priceLineVisible: false,
+          crosshairMarkerVisible: true, crosshairMarkerRadius: 3,
+          lineStyle: 0,
+        });
+        rsSeries.setData(data.rs);
+
+        // date → RS point lookup for exact-match crosshair sync below.
+        const rsMap = new Map();
+        data.rs.forEach(p => rsMap.set(p.time, p));
+
+        // Lock scroll/zoom: price → RS only (one-way, same as the RSI pane).
+        // A two-way lock was tried first, but the RS chart briefly auto-fits
+        // to its *entire* history right after creation, before anything has
+        // told it to match price — and with a two-way listener, that initial
+        // full-history view bounced straight back and overrode price's own
+        // "show recent candles" range, which is why price stopped scrolling
+        // to the latest candles. One-way avoids that entirely.
+        //
+        // Synced by LOGICAL (index) range, matching RSI's proven pattern.
+        // This now works correctly because data.rs comes from _linePadded(),
+        // which keeps a whitespace placeholder for every gap instead of
+        // dropping it — so rsSeries always has exactly the same number of
+        // entries, in the same positions, as candles. (An earlier version of
+        // this synced by TIME range instead, to work around data.rs being
+        // shorter before that padding fix existed — but time-range sync only
+        // matches the two charts' visible BOUNDARIES, not their bar-by-bar
+        // pixel spacing, so zooming could still drift the two out of step.
+        // Logical-range sync pins bar-for-bar, so zoom/pan always stay exact.)
+        priceChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+          if (!range) return;
+          try { rsChart.timeScale().setVisibleLogicalRange(range); } catch(e){}
+        });
+
+        // Crosshair sync: price → RS pane (one-way; RS is thin enough that
+        // hovering price gives you what you need).
+        //
+        // IMPORTANT: param.time from the price chart isn't necessarily the
+        // same representation rsSeries' own data uses (lightweight-charts
+        // normalizes string dates into its internal Time type), and passing
+        // it straight to setCrosshairPosition silently no-ops if it doesn't
+        // land on an exact point in rsSeries — which is exactly why the RS
+        // crosshair was landing on a stale/unrelated date instead of the
+        // hovered one. Fixed the same way the proven cross-pane sync (see
+        // _subscribeCrosshair below) does it: normalize to a "YYYY-MM-DD"
+        // string via _barToDate, then look up the EXACT matching point in
+        // rsSeries' own data (walking back up to 5 days for weekend/holiday
+        // gaps). Also passing the real RS value as the price argument —
+        // the previous hardcoded 0 put the dot at the bottom of the panel
+        // instead of on the line.
+        priceChart.subscribeCrosshairMove(param => {
+          if (!param || !param.time) { try { rsChart.clearCrosshairPosition(); } catch(e){} return; }
+          const dateStr = _barToDate(param.time, timeframe);
+          // rsMap may hold whitespace-only points (no `value`, from
+          // _linePadded's gap-filling) — keep walking back for a real one.
+          let pt = rsMap.get(dateStr);
+          if (!pt || pt.value == null) {
+            const base = new Date(dateStr + 'T00:00:00');
+            for (let d = 1; d <= 5 && (!pt || pt.value == null); d++) {
+              const dd = new Date(base); dd.setDate(base.getDate() - d);
+              pt = rsMap.get(dd.toISOString().slice(0, 10));
+            }
+          }
+          if (!pt || pt.value == null) { try { rsChart.clearCrosshairPosition(); } catch(e){} return; }
+          try { rsChart.setCrosshairPosition(pt.value, pt.time, rsSeries); } catch(e){}
+        });
+
+        const roRs = new ResizeObserver(() => {
+          try { rsChart.applyOptions({ width: rsEl.clientWidth, height: rsEl.clientHeight }); } catch(e){}
+        });
+        roRs.observe(rsEl);
+        _pendingROs.push(roRs);
+      }
+    }
+
     _setVisible(priceChart, data.candles, timeframe);
-    // Snap RSI range to match price chart immediately after both are set up
+    // Snap RS range to match price chart immediately after both are set up.
+    // Logical (index) range — see the sync-listener comment above for why.
+    if (rsChart) {
+      requestAnimationFrame(() => {
+        try {
+          const range = priceChart.timeScale().getVisibleLogicalRange();
+          if (range) rsChart.timeScale().setVisibleLogicalRange(range);
+        } catch(e) {}
+      });
+    }
     if (rsiChart) {
       requestAnimationFrame(() => {
         try {
@@ -8673,34 +8674,30 @@ function jrnlExportCSV(){
     // Pre-build lookup map for O(1) nearest-candle resolution during crosshair sync
     const candleMap = _buildCandleMap(data.candles, timeframe);
 
-    _charts.push({ priceChart, candleSeries, rsSeries, rsiChart, timeframe,
+    _charts.push({ priceChart, candleSeries, rsSeries, rsChart, rsiChart, timeframe, priceId,
                    candles: data.candles, rsByTime, candleMap, keltner: _chartKeltner });
     return priceChart;
   }
 
-  // Build a date-string → candle lookup so _nearestCandle is O(1) not O(n)
+  // Build a date-string → candle lookup so _nearestCandle is O(1) not O(n).
+  // 'daily' maps 1:1; 'weekly'/'monthly' fill every calendar day in each bar's
+  // span so any date within that week/month resolves to the right bar.
   function _buildCandleMap(candles, timeframe) {
     const m = new Map();
-    if (timeframe === 'hourly') {
-      // Map each calendar date (ET) to the first bar of that day
-      candles.forEach(c => {
-        const d = _etDateStr(c.time);
-        if (!m.has(d)) m.set(d, c);
-      });
-    } else {
-      // daily: direct date→bar; weekly: map every day of the week to its Monday bar
-      candles.forEach(c => {
-        m.set(c.time, c);
-        if (timeframe === 'weekly') {
-          // fill Tue-Fri of the same week so any daily date maps to its week bar
-          const base = new Date(c.time + 'T00:00:00');
-          for (let d = 1; d <= 4; d++) {
-            const dd = new Date(base); dd.setDate(base.getDate() + d);
-            const ds = dd.toISOString().slice(0,10);
-            if (!m.has(ds)) m.set(ds, c);
-          }
-        }
-      });
+    if (timeframe === 'daily') {
+      candles.forEach(c => m.set(c.time, c));
+      return m;
+    }
+    const capDays = timeframe === 'monthly' ? 31 : 7;
+    for (let i = 0; i < candles.length; i++) {
+      const c = candles[i];
+      const start = new Date(c.time + 'T00:00:00');
+      const next  = candles[i + 1];
+      const end   = next ? new Date(next.time + 'T00:00:00') : new Date(start.getTime() + capDays * 86400000);
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().slice(0, 10);
+        if (!m.has(ds)) m.set(ds, c);
+      }
     }
     return m;
   }
@@ -8723,81 +8720,11 @@ function jrnlExportCSV(){
 
   // ── Signal markers ────────────────────────────────────────────────────────
   function _addSignalMarkers(series, candles, signals, timeframe, priceChart) {
-    if (timeframe === 'weekly' || timeframe === 'daily') return;
-    const markers = [];
-    const timeSet = new Set(candles.map(c => String(c.time)));
-    const isBull  = (signals.direction || 'bull') === 'bull';
-
-    const nearestBar = (dateStr) => {
-      if (!dateStr) return null;
-      if (timeframe === 'hourly') {
-        const dayStart = Math.floor(new Date(dateStr + 'T00:00:00+05:30').getTime() / 1000);
-        const bar = candles.find(c => c.time >= dayStart && c.time < dayStart + 86400);
-        return bar ? bar.time : null;
-      }
-      if (timeSet.has(dateStr)) return dateStr;
-      // Weekly: map date → Monday of that week
-      const d = new Date(dateStr + 'T00:00:00');
-      const dow = d.getDay();
-      const offset = dow === 0 ? -6 : 1 - dow;
-      d.setDate(d.getDate() + offset);
-      const monStr = d.toISOString().slice(0,10);
-      return timeSet.has(monStr) ? monStr : null;
-    };
-
-    if (timeframe === 'hourly') {
-      // ── Hourly chart: H markers only (one per completed hourly cross) ───
-      const hSigs = signals.hourly_signals || [];
-      let hCount = 0;
-      hSigs.forEach(sig => {
-        if (sig.in_progress || !sig.cross_ts) return;
-        hCount++;
-        const cTs = Number(sig.cross_ts);
-        if (!timeSet.has(String(cTs))) return;
-        markers.push({
-          time: cTs,
-          position: isBull ? 'belowBar' : 'aboveBar',
-          color: '#00bcd4',
-          shape: 'circle',
-          text: `H${hCount}`,
-          size: 1,
-        });
-      });
-
-    } else {
-      // ── Non-hourly (currently unused — weekly/daily return early above) ───
-      if (signals.m_date && signals.m_price != null) {
-        const t = nearestBar(signals.m_date);
-        if (t != null)
-          markers.push({ time: t, position: isBull ? 'aboveBar' : 'belowBar',
-            color: isBull ? SIG_MHIGH : SIG_MLOW,
-            shape: isBull ? 'arrowDown' : 'arrowUp',
-            text: isBull ? 'M-Hi' : 'M-Lo', size: 1 });
-      }
-      if (signals.bull_cross_date) {
-        const t = nearestBar(signals.bull_cross_date);
-        if (t != null)
-          markers.push({ time: t, position: 'belowBar', color: SIG_BCROSS,
-                         shape: 'circle', text: 'BC', size: 1 });
-      }
-      if (signals.s_pullback_date) {
-        const t = nearestBar(signals.s_pullback_date);
-        if (t != null)
-          markers.push({ time: t, position: 'belowBar', color: SIG_SPB,
-                         shape: 'arrowUp', text: 'S-PB', size: 1 });
-      }
-      if (signals.c_pullback_date) {
-        const t = nearestBar(signals.c_pullback_date);
-        if (t != null)
-          markers.push({ time: t, position: 'belowBar', color: SIG_CPB,
-                         shape: 'arrowUp', text: 'C-PB', size: 1 });
-      }
-    }
-
-    if (markers.length) {
-      markers.sort((a,b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-      series.setMarkers(markers);
-    }
+    // No-op: markers were already suppressed on the weekly/daily panes before
+    // this chart's pane tiers were bumped to Monthly/Weekly/Daily, and the
+    // hourly-cross markers this used to draw have no data source any more now
+    // that intraday fetch/storage was retired. Signal dates are still
+    // available via the header's pill tags.
   }
 
   // ── Color helpers: delegate to _scoreHeat (global, same formula as rest of app) ──
@@ -9022,7 +8949,7 @@ function jrnlExportCSV(){
   }
 
   // TradingView-style time sync: given a calendar date string ("YYYY-MM-DD"),
-  // center all three charts (weekly/daily/hourly) on the corresponding bar and
+  // center all three charts (monthly/weekly/daily) on the corresponding bar and
   // place the crosshair there so scores update automatically.
   function _syncChartsToDate(dateStr) {
     if (!dateStr || !_charts.length) return;
@@ -9422,7 +9349,7 @@ function jrnlExportCSV(){
     document.getElementById('ibdChartSymbol').textContent = sym;
     document.getElementById('ibdChartName').textContent   = row?.company_name || '';
     document.getElementById('ibdChartStatus').textContent = 'Loading…';
-    ['ibdChartWeekly','ibdChartDaily','ibdChartHourly'].forEach(id => {
+    ['ibdChartWeekly','ibdChartDaily','ibdChartHourly','ibdChartDailyRs','ibdChartHourlyRs'].forEach(id => {
       const el = document.getElementById(id); if (el) el.innerHTML = '';
     });
 
@@ -9447,24 +9374,28 @@ function jrnlExportCSV(){
       _populateHeader(sym, row, signals);
 
       // Expand compact columnar arrays → {candles,volume,ema20,...} once up front
-      // so both _buildChart and weeklyData references (prev-week line, status bar) work.
-      d.weekly = _expandTf(d.weekly, true);
-      d.daily  = _expandTf(d.daily,  true);
-      d.hourly = d.hourly ? _expandTf(d.hourly, false) : null;
+      // so both _buildChart and the prev-period-line/status-bar references work.
+      d.monthly = d.monthly ? _expandTf(d.monthly, true) : null;
+      d.weekly  = _expandTf(d.weekly, true);
+      d.daily   = _expandTf(d.daily,  true);
 
-      _buildChart('ibdChartWeekly', d.weekly,  'weekly',  signals);
-      _buildChart('ibdChartDaily',  d.daily,   'daily',   signals);
-      _buildChart('ibdChartHourly', d.hourly,  'hourly',  signals, d.weekly);
+      // Pane tiers: top = Monthly, bottom-left = Weekly, bottom-right = Daily
+      // (bumped a tier from the old Weekly/Daily/Hourly once intraday data was
+      // retired). ibdChartHourly keeps its Keltner/RSI/position-tool extras —
+      // see the comment above _buildChart.
+      _buildChart('ibdChartWeekly', d.monthly, 'monthly', signals);
+      _buildChart('ibdChartDaily',  d.weekly,  'weekly',  signals);
+      _buildChart('ibdChartHourly', d.daily,   'daily',   signals, d.weekly);
       _subscribeCrosshair();
 
       // TradingView-style time sync: if opened from a historical strip bar, scroll
       // all three charts to center on that date and place crosshairs there.
       if (targetDate) _syncChartsToDate(targetDate);
 
-      const wB = d.weekly?.candles?.length||0, dB = d.daily?.candles?.length||0,
-            hB = d.hourly?.candles?.length||0;
+      const mB = d.monthly?.candles?.length||0, wB = d.weekly?.candles?.length||0,
+            dB = d.daily?.candles?.length||0;
       document.getElementById('ibdChartStatus').textContent =
-        `W: ${wB} bars  ·  D: ${dB} bars  ·  H: ${hB} bars  ·  Hover to sync crosshair`;
+        `M: ${mB} bars  ·  W: ${wB} bars  ·  D: ${dB} bars  ·  Hover to sync crosshair`;
 
       // When index history arrives: repopulate header + rebuild cursor-date history.
       // Also re-fire crosshair scores for whatever date is currently under the cursor.
@@ -9759,7 +9690,7 @@ function jrnlExportCSV(){
 
   function _posToolClear() {
     if (_positionPrimitive) {
-      const h = _charts.find(c => c.timeframe === 'hourly');
+      const h = _charts.find(c => c.priceId === 'ibdChartHourly');
       if (h) {
         try { h.candleSeries.detachPrimitive(_positionPrimitive); } catch(e){}
         try { h.candleSeries.applyOptions({}); } catch(e){} // force redraw
@@ -9771,7 +9702,7 @@ function jrnlExportCSV(){
     _posToolSetActive(null);
     if (_posPickListener) {
       window.removeEventListener('mouseup', _posPickListener.mouseupHandler, true);
-      const he = _charts.find(c => c.timeframe === 'hourly');
+      const he = _charts.find(c => c.priceId === 'ibdChartHourly');
       if (he && _posPickListener.crosshairHandler)
         try { he.priceChart.unsubscribeCrosshairMove(_posPickListener.crosshairHandler); } catch(_){}
       _posPickListener = null;
@@ -9792,7 +9723,7 @@ function jrnlExportCSV(){
     _kcLength = Math.max(5, Math.min(200, newLen));
     _kcMult   = Math.max(0.1, Math.min(10, newMul));
 
-    const hourlyEntry = _charts.find(c => c.timeframe === 'hourly');
+    const hourlyEntry = _charts.find(c => c.priceId === 'ibdChartHourly');
     if (!hourlyEntry || !hourlyEntry.candles.length) return;
 
     const keltner = _calcKeltner(hourlyEntry.candles, _kcLength, _kcMult);
@@ -9821,7 +9752,7 @@ function jrnlExportCSV(){
     const rsiEl  = document.getElementById('ibdChartHourlyRsi');
     const sepEl  = document.getElementById('ibdRsiSep');
     const btn    = document.getElementById('ibdRsiToggleBtn');
-    const hEntry = _charts.find(c => c.timeframe === 'hourly');
+    const hEntry = _charts.find(c => c.priceId === 'ibdChartHourly');
 
     if (_rsiVisible) {
       // Show pane
@@ -9832,20 +9763,16 @@ function jrnlExportCSV(){
       // Build RSI chart if we have candle data
       if (hEntry && rsiEl) {
         const BORDER = '#d0d7de', GRID = 'rgba(0,0,0,0.04)';
-        const hourlyLocalization = { localization: { timeFormatter: t => {
-          const d = new Date(t * 1000);
-          return d.toLocaleDateString('en-US', { day:'2-digit', month:'short' }) + ' ' +
-                 d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
-        }}};
         const PRICE_OPTS = { layout: { background: { color: '#fff' }, textColor: '#24292f' },
-                             timeScale: { borderColor: BORDER, timeVisible: true, secondsVisible: false },
+                             crosshair: { vertLine: { labelBackgroundColor: '#8c959f' }, horzLine: { labelBackgroundColor: '#8c959f' } },
+                             timeScale: { borderColor: BORDER, timeVisible: false, secondsVisible: false },
                              handleScroll: true, handleScale: true };
         const rsiData = _calcRsi(hEntry.candles, 14);
         if (rsiData.length) {
           const rsiChart = LightweightCharts.createChart(rsiEl, {
-            ...PRICE_OPTS, ...hourlyLocalization,
+            ...PRICE_OPTS,
             width: rsiEl.clientWidth || 380, height: rsiEl.clientHeight || 90,
-            timeScale: { ...PRICE_OPTS.timeScale, timeVisible: true, borderColor: BORDER },
+            timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, borderColor: BORDER },
             rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0.1, bottom: 0.1 } },
             leftPriceScale: { visible: false },
             grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
@@ -9909,7 +9836,7 @@ function jrnlExportCSV(){
   };
 
   window.ibdPositionTool = function(direction) {
-    const hourlyEntry = _charts.find(c => c.timeframe === 'hourly');
+    const hourlyEntry = _charts.find(c => c.priceId === 'ibdChartHourly');
     if (!hourlyEntry) return;
 
     _posToolClear();
@@ -9954,12 +9881,18 @@ function jrnlExportCSV(){
       const tsFromCoord = hourlyEntry.priceChart.timeScale().coordinateToTime(xInChart);
       const refTime = tsFromCoord ?? _lastCrosshairTime;
 
+      // Find the candle nearest refTime. This pane now plots daily bars keyed
+      // by "YYYY-MM-DD" strings (it used to be hourly epoch timestamps, back
+      // when Math.abs(c.time - refTime) below made sense as a numeric time
+      // distance) — that subtraction silently produces NaN on string dates,
+      // so the comparison never won and `candle` stayed stuck on the last
+      // bar no matter where you clicked. Reuse the same string-date lookup
+      // (_barToDate + _nearestCandle, with candleMap) the proven cross-pane
+      // crosshair sync already relies on, instead of numeric distance.
       if (refTime != null) {
-        let best = Infinity;
-        for (const c of candles) {
-          const d = Math.abs(c.time - refTime);
-          if (d < best) { best = d; candle = c; }
-        }
+        const dateStr = _barToDate(refTime, hourlyEntry.timeframe);
+        const found = _nearestCandle(candles, dateStr, hourlyEntry.timeframe, hourlyEntry.candleMap);
+        if (found) candle = found;
       }
 
       const entryPrice = candle.close;
