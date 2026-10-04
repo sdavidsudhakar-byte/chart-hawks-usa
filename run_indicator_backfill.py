@@ -16,9 +16,12 @@ Warmup:
 
 Benchmark for RS line: ^GSPC (S&P 500)
 
+Every run recomputes each symbol's full stored history (cheap — one indexed
+SELECT + an O(n) EMA/SMA pass per symbol), so results stay correct however
+long the gap since the last run; there is no lookback-windowed mode.
+
 Run:
     python run_indicator_backfill.py
-    python run_indicator_backfill.py --incremental   # last 5 dates only
     python run_indicator_backfill.py --test AAPL ^GSPC
 """
 
@@ -270,12 +273,19 @@ def backfill_hourly(con: sqlite3.Connection, symbols: list):
     logger.info("Hourly complete: %d rows", total)
 
 
-# ── Incremental entry point (called from main.py refresh pipeline) ────────────
+# ── Entry point (called from main.py / run_price_refresh.py / run_flash_refresh.py) ──
 
-def run_incremental(lookback_days: int = 5) -> dict:
+def run_incremental() -> dict:
     """
-    Recompute indicators for the most recent `lookback_days` trading dates only.
-    Called automatically after every price refresh. Fast (~seconds for 2100 syms).
+    Recompute EMA20/50, SMA200 and RS line for every symbol across daily,
+    weekly and hourly, called automatically after every price refresh.
+
+    Despite the name (kept for backward compatibility with existing callers),
+    this is NOT scoped to a trailing lookback window — backfill_daily/weekly/
+    hourly always reprocess each symbol's full stored history (cheap: it's a
+    single indexed SELECT + an O(n) EMA/SMA pass per symbol, not a per-row
+    fetch), so results stay correct however long the gap since the last run
+    — safe for an infrequent (e.g. monthly) refresh cadence, not just daily.
 
     Returns a summary dict with row counts.
     """
@@ -301,15 +311,15 @@ def run_incremental(lookback_days: int = 5) -> dict:
             ).fetchall()
         }
 
-        logger.info("Incremental indicators: %d symbols, lookback=%d days", len(all_syms), lookback_days)
+        logger.info("Indicator refresh: %d symbols, full history each (no lookback window)", len(all_syms))
 
-        logger.info("STEP 1/3 — Daily indicators (incremental)")
+        logger.info("STEP 1/3 — Daily indicators")
         backfill_daily(con, all_syms, bench_daily)
 
-        logger.info("STEP 2/3 — Weekly OHLCV + indicators (incremental)")
+        logger.info("STEP 2/3 — Weekly OHLCV + indicators")
         backfill_weekly(con, all_syms, bench_daily)
 
-        logger.info("STEP 3/3 — Hourly indicators (incremental)")
+        logger.info("STEP 3/3 — Hourly indicators")
         backfill_hourly(con, all_syms)
 
         # Row counts for SSE status message
@@ -317,7 +327,7 @@ def run_incremental(lookback_days: int = 5) -> dict:
         for tbl in ["ohlcv_weekly", "indicator_daily", "indicator_weekly", "indicator_hourly"]:
             counts[tbl] = con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
 
-        logger.info("Incremental indicators complete: %s", counts)
+        logger.info("Indicator refresh complete: %s", counts)
         return {"ok": True, "counts": counts, "symbols": len(all_syms)}
     except Exception as e:
         logger.exception("run_incremental failed: %s", e)
@@ -330,7 +340,6 @@ def run_incremental(lookback_days: int = 5) -> dict:
 
 def main():
     args = sys.argv[1:]
-    incremental = "--incremental" in args
     test_syms   = []
     if "--test" in args:
         idx = args.index("--test")
@@ -359,11 +368,6 @@ def main():
         ).fetchall()
     }
     logger.info("Benchmark loaded: %d daily bars", len(bench_daily))
-
-    if incremental:
-        # Only recompute last 5 trading dates for daily/weekly, all hourly
-        recent_dates = sorted(bench_daily.keys())[-5:]
-        logger.info("Incremental mode: recomputing last 5 dates: %s", recent_dates)
 
     logger.info("=" * 60)
     logger.info("STEP 1/3 — Daily indicators")

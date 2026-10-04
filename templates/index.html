@@ -1938,7 +1938,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Price Data Refresh
       </div>
-      <div class="settings-desc">Fetches the last 366 days of daily OHLCV + 100-day 60-minute intraday from yfinance for every stock and sector/broad-market ETF (tops up on top of the one-time multi-year historical seed — it does not re-fetch years of history), then recomputes EMA20/50 + SMA200 + RS line for the last 5 trading days and IBD RS ratings. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
+      <div class="settings-desc">Fetches the last 366 days of daily OHLCV + 100-day 60-minute intraday from yfinance for every stock and sector/broad-market ETF (tops up on top of the one-time multi-year historical seed — it does not re-fetch years of history), then recomputes EMA20/50 + SMA200 + RS line across each symbol's full history and IBD RS ratings. Safe to run as infrequently as monthly — nothing here is limited to a short lookback window. Required before Strength Analysis, EMA Scanner, and IBD RS tab.</div>
       <div class="settings-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="priceRefreshBtn" class="btn btn-cyan" onclick="startPriceRefresh(false)">
           <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
