@@ -2,14 +2,15 @@
 run_flash_refresh.py — Fast INCREMENTAL data fetch for GitHub Actions.
 
 The "Flash Price Refresh" CLI companion to run_price_refresh.py, for the
-daily / market-hours cadence. Same 6-step sequence, but:
+daily / market-hours cadence. Same 7-step sequence, but:
 
   1. Stock daily OHLCV   — INCREMENTAL: only new bars/symbol (+5-day overlap)
   2. Stock 60M intraday  — 100 days, all symbols (unchanged)
-  3. Index daily + 60M   — full index refresh (81 indices; cheap) — NO purge
-  4. IBD RS compute + 5-day backfill (narrowed from 30)
-  5. Stock RS compute (only missing dates)
-  6. Summary email
+  3. Index daily + 60M   — full index refresh (15 sector/broad-market ETFs; cheap) — NO purge
+  4. EMA20/50, SMA200, RS line (last 5 trading days only — see run_incremental)
+  5. IBD RS compute + 5-day backfill (narrowed from 30)
+  6. Stock RS compute (only missing dates)
+  7. Summary email
 
 Never purges history. Writes merge by (symbol,date)/(symbol,ts), so this is
 safe to run alongside/between the weekend full run_price_refresh.py, which
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 import db
 import flash_prices as flash_prices_module
 import index_data as index_data_module
+import run_indicator_backfill as indicators_module
 import rs as rs_module
 import stock_rs as stock_rs_module
 import notifier
@@ -104,7 +106,18 @@ def main():
     if index_failed:
         logger.warning("Failed index symbols: %s", index_failed)
 
-    # ── 4: IBD RS compute + incremental backfill ─────────────────────────────
+    # ── 4: EMA20/50, SMA200, RS line (last 5 trading days) ───────────────────
+    logger.info("Computing indicators (EMA20/50, SMA200, RS line, weekly candles)...")
+    try:
+        ind_result = indicators_module.run_incremental()
+        if ind_result.get("ok"):
+            logger.info("Indicators done: %s", ind_result.get("counts"))
+        else:
+            logger.warning("Indicators skipped: %s", ind_result.get("reason") or ind_result.get("error"))
+    except Exception as e:
+        logger.exception("Indicator backfill failed: %s", e)
+
+    # ── 5: IBD RS compute + incremental backfill ─────────────────────────────
     logger.info("Computing IBD RS ratings...")
     try:
         result = rs_module.compute_and_store_rs()
@@ -129,7 +142,7 @@ def main():
     except Exception as e:
         logger.exception("Index mid/short backfill failed: %s", e)
 
-    # ── 5: Stock RS compute (only missing dates) ─────────────────────────────
+    # ── 6: Stock RS compute (only missing dates) ─────────────────────────────
     logger.info("Computing stock RS (RS21/RS55/RS252 ranks)...")
     try:
         sr_dates = stock_rs_module.get_dates_to_compute(backfill_days=_RS_BACKFILL_DAYS)
@@ -142,7 +155,7 @@ def main():
     except Exception as e:
         logger.exception("Stock RS computation failed: %s", e)
 
-    # ── 6: Email summary ──────────────────────────────────────────────────────
+    # ── 7: Email summary ──────────────────────────────────────────────────────
     logger.info("Sending Flash summary email...")
     try:
         notifier.send_summary(

@@ -6,9 +6,10 @@ Sequence:
   2. Stock 60m intraday  (100 days, 1 yfinance call each)
   3. Index daily OHLCV   (366 days, 15 sector/broad-market ETFs) — NO purge
   4. Index 60m intraday  (100 days, 15 sector/broad-market ETFs)
-  5. IBD RS compute + 30-day backfill
-  6. Stock RS compute (RS21/RS55/RS252 ranks for the full US universe)
-  7. Summary email
+  5. EMA20/50, SMA200, RS line (indicator_daily/weekly/hourly) + ohlcv_weekly
+  6. IBD RS compute + 30-day backfill
+  7. Stock RS compute (RS21/RS55/RS252 ranks for the full US universe)
+  8. Summary email
 
 Scheduled: every weekday (Mon-Fri) before 9:30 AM ET market open.
 """
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 import db
 import market_data as prices_module
 import index_data as index_data_module
+import run_indicator_backfill as indicators_module
 import rs as rs_module
 import stock_rs as stock_rs_module
 import notifier
@@ -99,7 +101,18 @@ def main():
     if index_failed:
         logger.warning("Failed index symbols: %s", index_failed)
 
-    # ── 5: IBD RS compute + backfill ─────────────────────────────────────────
+    # ── 5: EMA20/50, SMA200, RS line + weekly OHLCV ──────────────────────────
+    logger.info("Computing indicators (EMA20/50, SMA200, RS line, weekly candles)...")
+    try:
+        ind_result = indicators_module.run_incremental()
+        if ind_result.get("ok"):
+            logger.info("Indicators done: %s", ind_result.get("counts"))
+        else:
+            logger.warning("Indicators skipped: %s", ind_result.get("reason") or ind_result.get("error"))
+    except Exception as e:
+        logger.exception("Indicator backfill failed: %s", e)
+
+    # ── 6: IBD RS compute + backfill ─────────────────────────────────────────
     logger.info("Computing IBD RS ratings...")
     try:
         result = rs_module.compute_and_store_rs()
@@ -124,7 +137,7 @@ def main():
     except Exception as e:
         logger.exception("Index mid/short backfill failed: %s", e)
 
-    # ── 6: Stock RS compute ───────────────────────────────────────────────────
+    # ── 7: Stock RS compute ───────────────────────────────────────────────────
     logger.info("Computing stock RS (RS21/RS55/RS252 ranks)...")
     try:
         sr_dates = stock_rs_module.get_dates_to_compute(backfill_days=30)
@@ -137,7 +150,7 @@ def main():
     except Exception as e:
         logger.exception("Stock RS computation failed: %s", e)
 
-    # ── 7: Email summary ──────────────────────────────────────────────────────
+    # ── 8: Email summary ──────────────────────────────────────────────────────
     logger.info("Sending summary email...")
     try:
         notifier.send_summary(

@@ -105,7 +105,7 @@ def backfill_daily(con: sqlite3.Connection, symbols: list, bench_closes: dict):
 
     for i, sym in enumerate(symbols):
         rows = con.execute(
-            "SELECT date, close FROM ohlcv_daily WHERE symbol=? ORDER BY date ASC", (sym,)
+            "SELECT date, close FROM ohlcv_daily WHERE symbol=? AND close IS NOT NULL ORDER BY date ASC", (sym,)
         ).fetchall()
         if not rows:
             continue
@@ -174,7 +174,7 @@ def backfill_weekly(con: sqlite3.Connection, symbols: list, bench_daily_closes: 
 
     for i, sym in enumerate(symbols):
         rows = con.execute(
-            "SELECT date, open, high, low, close, volume FROM ohlcv_daily WHERE symbol=? ORDER BY date ASC",
+            "SELECT date, open, high, low, close, volume FROM ohlcv_daily WHERE symbol=? AND close IS NOT NULL ORDER BY date ASC",
             (sym,)
         ).fetchall()
         if not rows:
@@ -233,7 +233,7 @@ def backfill_hourly(con: sqlite3.Connection, symbols: list):
 
     # Build hourly benchmark closes
     bench_rows = con.execute(
-        "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? ORDER BY ts ASC", (BENCH,)
+        "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? AND close IS NOT NULL ORDER BY ts ASC", (BENCH,)
     ).fetchall()
     bench_hourly = {r[0]: float(r[1]) for r in bench_rows}
 
@@ -241,7 +241,7 @@ def backfill_hourly(con: sqlite3.Connection, symbols: list):
 
     for i, sym in enumerate(symbols):
         rows = con.execute(
-            "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? ORDER BY ts ASC", (sym,)
+            "SELECT ts, close FROM ohlcv_intraday WHERE symbol=? AND close IS NOT NULL ORDER BY ts ASC", (sym,)
         ).fetchall()
         if not rows:
             continue
@@ -297,7 +297,7 @@ def run_incremental(lookback_days: int = 5) -> dict:
         bench_daily = {
             r[0]: float(r[1])
             for r in con.execute(
-                "SELECT date, close FROM ohlcv_daily WHERE symbol=? ORDER BY date ASC", (BENCH,)
+                "SELECT date, close FROM ohlcv_daily WHERE symbol=? AND close IS NOT NULL ORDER BY date ASC", (BENCH,)
             ).fetchall()
         }
 
@@ -355,7 +355,7 @@ def main():
     bench_daily = {
         r[0]: float(r[1])
         for r in con.execute(
-            "SELECT date, close FROM ohlcv_daily WHERE symbol=? ORDER BY date ASC", (BENCH,)
+            "SELECT date, close FROM ohlcv_daily WHERE symbol=? AND close IS NOT NULL ORDER BY date ASC", (BENCH,)
         ).fetchall()
     }
     logger.info("Benchmark loaded: %d daily bars", len(bench_daily))
