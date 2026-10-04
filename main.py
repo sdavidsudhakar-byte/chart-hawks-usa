@@ -1087,9 +1087,11 @@ async def api_scan_signals(request: Request):
             r.get("_daily_cross_date") or ""
         ), reverse=True)
 
-        # Weekly EMA20 > EMA50 flag
+        # Weekly EMA20 > EMA50 flag + avg daily dollar volume (liquidity filter)
         import sqlite3 as _sq3h
+        import datetime as _dt52h
         _wema_map_h: dict = {}
+        _avgvol_map_h: dict = {}
         try:
             _hcon = _sq3h.connect("local.db")
             _wema_rows_h = _hcon.execute(
@@ -1102,6 +1104,22 @@ async def api_scan_signals(request: Request):
                 e20, e50 = _wr[1], _wr[2]
                 if e20 is not None and e50 is not None:
                     _wema_map_h[_wr[0]] = float(e20) > float(e50)
+
+            _max_date_row = _hcon.execute("SELECT MAX(date) FROM ohlcv_daily").fetchone()
+            _as_of_h = _max_date_row[0] if _max_date_row else None
+            if _as_of_h:
+                _cutoff20h = (
+                    _dt52h.date.fromisoformat(str(_as_of_h)[:10]) - _dt52h.timedelta(days=28)
+                ).isoformat()
+                _vol_rows_h = _hcon.execute(
+                    """SELECT symbol, AVG(volume * close) AS dvol FROM ohlcv_daily
+                       WHERE date >= ? AND date <= ? AND close IS NOT NULL AND volume IS NOT NULL
+                       GROUP BY symbol""",
+                    (_cutoff20h, _as_of_h),
+                ).fetchall()
+                for _vr in _vol_rows_h:
+                    if _vr[1] is not None:
+                        _avgvol_map_h[_vr[0]] = round(float(_vr[1]), 0)
             _hcon.close()
         except Exception:
             pass
@@ -1138,6 +1156,7 @@ async def api_scan_signals(request: Request):
                 "w52_low":          r.get("w52_low"),
                 "last_close":       r.get("last_close"),
                 "w_ema_bull":       _wema_map_h.get(r["symbol"], False),
+                "avg_dollar_vol":   _avgvol_map_h.get(r["symbol"]),
             })
 
         import datetime as _dt
@@ -1928,6 +1947,7 @@ def api_stock_rs(symbols: str = ""):
     _close_map: dict = {}
     _w52_map:   dict = {}
     _w_ema_bull_map: dict = {}
+    _avgvol_map: dict = {}
     try:
         _close_rows = _ocon.execute(
             "SELECT symbol, close FROM ohlcv_daily WHERE date = ?", (as_of,)
@@ -1958,6 +1978,21 @@ def api_stock_rs(symbols: str = ""):
             e20, e50 = _wr[1], _wr[2]
             if e20 is not None and e50 is not None:
                 _w_ema_bull_map[_wr[0]] = float(e20) > float(e50)
+
+        # Avg daily dollar volume (~20 trading days, approximated via a 28-calendar-day
+        # window) — liquidity filter for swing trading. volume*close per bar, averaged.
+        _cutoff20 = (
+            _dt52.date.fromisoformat(str(as_of)[:10]) - _dt52.timedelta(days=28)
+        ).isoformat()
+        _vol_rows = _ocon.execute(
+            """SELECT symbol, AVG(volume * close) AS dvol FROM ohlcv_daily
+               WHERE date >= ? AND date <= ? AND close IS NOT NULL AND volume IS NOT NULL
+               GROUP BY symbol""",
+            (_cutoff20, as_of),
+        ).fetchall()
+        for _vr in _vol_rows:
+            if _vr["dvol"] is not None:
+                _avgvol_map[_vr["symbol"]] = round(float(_vr["dvol"]), 0)
     finally:
         _ocon.close()
 
@@ -1989,6 +2024,7 @@ def api_stock_rs(symbols: str = ""):
             "w52_high":       _w52[0] if _w52 else None,
             "w52_low":        _w52[1] if _w52 else None,
             "w_ema_bull":     _w_ema_bull_map.get(sym, False),
+            "avg_dollar_vol": _avgvol_map.get(sym),
         })
 
     _payload = {"as_of": as_of, "stocks": out_stocks}

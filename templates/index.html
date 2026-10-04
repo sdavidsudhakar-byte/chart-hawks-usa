@@ -500,6 +500,21 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
 .hr-fno-btn{background:var(--bg);border:none;color:var(--text2);padding:5px 11px;font-size:.74rem;cursor:pointer;font-family:inherit;transition:background .15s,color .15s;}
 .hr-fno-btn:hover{background:var(--bg2);color:var(--text);}
 .hr-fno-btn.hr-fno-active{background:var(--blue);color:#fff;font-weight:600;}
+/* Dollar-volume dual-range slider (log scale) */
+.dvol-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.dvol-label{font-size:.74rem;color:var(--text2);white-space:nowrap;}
+.dvol-slider{position:relative;width:120px;height:18px;flex-shrink:0;}
+.dvol-slider input[type=range]{position:absolute;left:0;top:7px;width:100%;height:4px;margin:0;
+  -webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;}
+.dvol-slider input[type=range]::-webkit-slider-runnable-track{height:4px;background:transparent;}
+.dvol-slider input[type=range]::-moz-range-track{height:4px;background:transparent;}
+.dvol-slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;
+  width:13px;height:13px;border-radius:50%;background:var(--blue);border:2px solid var(--bg);cursor:pointer;margin-top:-4.5px;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.dvol-slider input[type=range]::-moz-range-thumb{pointer-events:auto;width:13px;height:13px;border-radius:50%;
+  background:var(--blue);border:2px solid var(--bg);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.dvol-track{position:absolute;left:0;top:7px;width:100%;height:4px;border-radius:2px;background:var(--border);}
+.dvol-range{position:absolute;top:7px;left:0;width:100%;height:4px;border-radius:2px;background:var(--blue);}
+.dvol-val{font-size:.72rem;color:var(--text2);white-space:nowrap;min-width:84px;text-align:center;}
 /* Watchlist mode toggle (header) */
 .wl-mode-btn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text2);padding:5px 11px;font-size:.74rem;font-family:inherit;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
 .wl-mode-btn:hover{background:var(--bg2);color:var(--text);}
@@ -1013,6 +1028,17 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
     <div class="hr-toolbar" style="padding:10px 16px;">
       <!-- W 20>50 filter -->
       <button class="hr-fno-btn" id="hrWEmaBtn" onclick="hrToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;">W 20&gt;50</button>
+      <!-- $ Volume liquidity range filter (20-day avg daily dollar volume, log-scale slider) -->
+      <div class="dvol-wrap" title="20-day average daily dollar volume range">
+        <span class="dvol-label">$Vol</span>
+        <div class="dvol-slider">
+          <div class="dvol-track"></div>
+          <div class="dvol-range" id="hrVolRangeBar"></div>
+          <input type="range" id="hrVolMin" min="0" max="1000" value="0" oninput="_dvolSliderInput('hr')">
+          <input type="range" id="hrVolMax" min="0" max="1000" value="1000" oninput="_dvolSliderInput('hr')">
+        </div>
+        <span class="dvol-val" id="hrVolValLabel">Any</span>
+      </div>
       <!-- divider -->
       <div class="hr-tb-div"></div>
       <!-- Hawks Index -->
@@ -1253,6 +1279,17 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       <div class="hr-tb-div"></div>
       <!-- W 20>50 filter -->
       <button class="hr-fno-btn" id="scanWEmaBtn" onclick="scanToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;">W 20&gt;50</button>
+      <!-- $ Volume liquidity range filter (20-day avg daily dollar volume, log-scale slider) -->
+      <div class="dvol-wrap" title="20-day average daily dollar volume range">
+        <span class="dvol-label">$Vol</span>
+        <div class="dvol-slider">
+          <div class="dvol-track"></div>
+          <div class="dvol-range" id="scanVolRangeBar"></div>
+          <input type="range" id="scanVolMin" min="0" max="1000" value="0" oninput="_dvolSliderInput('scan')">
+          <input type="range" id="scanVolMax" min="0" max="1000" value="1000" oninput="_dvolSliderInput('scan')">
+        </div>
+        <span class="dvol-val" id="scanVolValLabel">Any</span>
+      </div>
       <div class="hr-tb-div"></div>
       <div class="idx-multi hr-dd" id="scan_hawks_map_wrap">
         <button type="button" class="hr-dd-btn" id="scan_hawks_map_btn" onclick="scanHmToggle(event)">
@@ -2085,6 +2122,8 @@ let _scanHawksSel = new Set();
 let _scanIdxSelected = new Set();
 let _scanFnoFilter = 'equity';
 let _scanWEmaFilter = false;  // true = only stocks where weekly EMA20 > EMA50
+let _scanMinDollarVol = 0;        // $Vol slider lower bound in dollars (0 = no floor)
+let _scanMaxDollarVol = Infinity; // $Vol slider upper bound in dollars (Infinity = no ceiling)
 let _scanSymbolScope = null; // when non-null, only these symbols are shown (set by Stocks Lens scan; cleared by Clear button)
 
 // ── Watchlist state ──
@@ -4152,6 +4191,62 @@ let _hrHawksSel = new Set();
 let _hrIdxSelected = new Set();
 let _hrFnoFilter = 'equity'; // 'equity' = all stocks, 'fno' = FnO only
 let _hrWEmaFilter = false;  // true = only stocks where weekly EMA20 > EMA50
+let _hrMinDollarVol = 0;    // $Vol slider lower bound in dollars (0 = no floor)
+let _hrMaxDollarVol = Infinity; // $Vol slider upper bound in dollars (Infinity = no ceiling)
+
+// ── Shared $-volume dual-range slider engine (log scale, $100K .. $20B) ──
+// Reused by both Stocks Lens ('hr' prefix) and Stocks Hunt ('scan' prefix).
+const DVOL_MIN = 100000;          // $100K
+const DVOL_MAX = 20000000000;     // $20B
+const DVOL_STEPS = 1000;
+function _dvolStepToDollars(v) {
+  const t = v / DVOL_STEPS;
+  return Math.round(DVOL_MIN * Math.pow(DVOL_MAX / DVOL_MIN, t));
+}
+function _dvolFmt(d) {
+  if (d >= 1e9) return '$' + (d/1e9).toFixed(1).replace(/\.0$/,'') + 'B';
+  if (d >= 1e6) return '$' + (d/1e6).toFixed(0) + 'M';
+  if (d >= 1e3) return '$' + (d/1e3).toFixed(0) + 'K';
+  return '$' + Math.round(d);
+}
+let _dvolTimers = {};
+function _dvolSliderInput(prefix) {
+  const minEl = document.getElementById(prefix+'VolMin');
+  const maxEl = document.getElementById(prefix+'VolMax');
+  const bar   = document.getElementById(prefix+'VolRangeBar');
+  const label = document.getElementById(prefix+'VolValLabel');
+  if (!minEl || !maxEl) return;
+  let lo = parseInt(minEl.value), hi = parseInt(maxEl.value);
+  if (lo > hi) {
+    // keep handles from crossing — swap the one that just moved
+    if (document.activeElement === minEl) { maxEl.value = lo; hi = lo; }
+    else { minEl.value = hi; lo = hi; }
+  }
+  if (bar) { bar.style.left = (lo/DVOL_STEPS*100)+'%'; bar.style.width = ((hi-lo)/DVOL_STEPS*100)+'%'; }
+  const loDollars = lo <= 0 ? 0 : _dvolStepToDollars(lo);
+  const hiDollars = hi >= DVOL_STEPS ? Infinity : _dvolStepToDollars(hi);
+  if (label) {
+    label.textContent = (lo<=0 && hi>=DVOL_STEPS) ? 'Any'
+      : `${lo<=0?'0':_dvolFmt(loDollars)}–${hi>=DVOL_STEPS?'∞':_dvolFmt(hiDollars)}`;
+  }
+  clearTimeout(_dvolTimers[prefix]);
+  _dvolTimers[prefix] = setTimeout(() => {
+    if (prefix === 'hr') {
+      _hrMinDollarVol = loDollars; _hrMaxDollarVol = hiDollars;
+      hrFilterAndRender();
+    } else {
+      _scanMinDollarVol = loDollars; _scanMaxDollarVol = hiDollars;
+      rerenderScanResults();
+    }
+  }, 150);
+}
+function _dvolReset(prefix) {
+  const minEl = document.getElementById(prefix+'VolMin');
+  const maxEl = document.getElementById(prefix+'VolMax');
+  if (minEl) minEl.value = 0;
+  if (maxEl) maxEl.value = DVOL_STEPS;
+  _dvolSliderInput(prefix);
+}
 
 function _fixPanelOverflow(panelId) {
   const p = document.getElementById(panelId);
@@ -4359,6 +4454,7 @@ function hrClearAllFilters() {
   _hrIdxSelected.clear(); _hrIdxUpdateLabel();
   _hrFnoFilter = 'equity';
   _hrWEmaFilter = false;
+  _dvolReset('hr');
   document.querySelectorAll('.hr-fno-btn[data-fno]').forEach(b => b.classList.toggle('hr-fno-active', b.dataset.fno === 'equity'));
   document.getElementById('hrWEmaBtn')?.classList.remove('hr-fno-active');
   hrFilterAndRender();
@@ -4379,6 +4475,12 @@ function hrFilterAndRender() {
   if (q) items = items.filter(s => s.symbol.toLowerCase().includes(q) || (s.company_name||'').toLowerCase().includes(q));
   // Weekly EMA20 > EMA50 filter
   if (_hrWEmaFilter) items = items.filter(s => s.w_ema_bull === true);
+  if (_hrMinDollarVol > 0 || _hrMaxDollarVol < Infinity) {
+    items = items.filter(s => {
+      const v = s.avg_dollar_vol || 0;
+      return v >= _hrMinDollarVol && v <= _hrMaxDollarVol;
+    });
+  }
   // Multi-select classification filters
   const hrMsFields = ['macro','sector','industry','basic_industry'];
   for (const f of hrMsFields) {
@@ -6381,6 +6483,10 @@ function _applyDaysFilter(rows){
   return rows.filter(r=>{
     if(only200&&!r.above_200sma)return false;
     if(_scanWEmaFilter&&!r.w_ema_bull)return false;
+    if(_scanMinDollarVol>0||_scanMaxDollarVol<Infinity){
+      const v=r.avg_dollar_vol||0;
+      if(v<_scanMinDollarVol||v>_scanMaxDollarVol)return false;
+    }
     const inW=d=>{if(!d)return false;return d.slice(0,10)>=cutoffStr;};
     // Also pass rows with a recent hourly cross regardless of daily_cross_date age
     if(r.latest_hx_ts){
@@ -6612,6 +6718,7 @@ function scanClearAllFilters(){
   _scanIdxSelected.clear();_scanIdxUpdateLabel();scanIdxRender();
   _scanFnoFilter='equity';
   _scanWEmaFilter=false;
+  _dvolReset('scan');
   document.querySelectorAll('.hr-fno-btn[data-sfno]').forEach(b=>b.classList.toggle('hr-fno-active',b.dataset.sfno==='equity'));
   document.getElementById('scanWEmaBtn')?.classList.remove('hr-fno-active');
   // Reset the Established/score preset too — clears _shfEstOR, unlocks the LT/Mid/ST
