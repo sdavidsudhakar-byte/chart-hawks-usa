@@ -15,15 +15,24 @@ actual distribution of `tickers.industry` values in the live DB (not GICS's
 official taxonomy, which doesn't match either Wikipedia's or Yahoo's naming
 exactly — see sector_etf_map.normalize_sector for the same class of issue at
 the sector level). This trades 100% coverage for an index that is never
-empty: every industry ETF listed here is backed by real, actively-updated
-stock mappings.
+empty: every mapped industry ETF is backed by real, actively-updated stock
+mappings.
+
+Where two+ ETFs track essentially the same theme (e.g. Biotech: XBI vs IBB),
+the pick was the more liquid one by real AUM/average-volume on yfinance, not
+a guess — see the inline comments in INDUSTRY_ETF for the numbers.
+
+INDUSTRY_ETF also lists real, verified-valid ETFs for themes that are NOT
+yet in INDUSTRY_NAME_MAP (e.g. Robotics & AI, Uranium, FinTech) — these show
+up in the Industry tab with real price/RS data but no stocks until a mapping
+is added; kept there deliberately for review before committing one.
 
 "Shell Companies" (pre-merger SPACs) is intentionally never mapped — it is
 not an investable theme, no ETF tracks it, and it would just be empty noise.
 
 Public API:
-  INDUSTRY_ETF      — {display name: ETF ticker} for the ~25 industry ETFs
-  INDUSTRY_NAME_MAP — {tickers.industry value: display name}
+  INDUSTRY_ETF      — {display name: ETF ticker}, mapped + unmapped-for-now
+  INDUSTRY_NAME_MAP — {tickers.industry value: display name} (mapped subset only)
   build_industry_index_map_rows(tickers) — extra rows for db.upsert_sector_index_map
 """
 
@@ -31,30 +40,50 @@ Public API:
 # "Industry" tab and in hawks_mappings — must be stable (used for the
 # Stocks Lens Hawks Index filter join, same mechanism as sector_etf_map).
 INDUSTRY_ETF: dict[str, str] = {
-    "Biotechnology":              "XBI",
-    "Pharmaceuticals":            "XPH",
+    # ── Mapped to real stock clusters (industry_etf_map.INDUSTRY_NAME_MAP) ──
+    # Ticker picks verified against real AUM/volume on yfinance — where two+
+    # ETFs track essentially the same theme, the most liquid one wins.
+    "Biotechnology":              "XBI",   # vs IBB ($11.4B vs $10.5B AUM)
+    "Pharmaceuticals":            "IHE",   # vs XPH ($1.7B vs $0.6B)
     "Medical Devices & Equipment":"IHI",
-    "Health Care Services":       "XHS",
-    "Capital Markets & Asset Mgmt":"KCE",
-    "Regional Banks":             "KRE",
+    "Health Care Services":       "IHF",   # vs XHS ($1.2B vs $0.2B)
+    "Capital Markets & Asset Mgmt":"KCE",  # vs IAI — IAI has more AUM but is
+                                            # narrower (broker-dealers only);
+                                            # KCE better matches our large
+                                            # Asset Management stock cluster
+    "Regional Banks":             "KRE",   # vs KBE, IAT ($4.0B vs $1.6B/$0.6B)
     "Insurance":                  "KIE",
-    "Software & IT Services":     "IGV",
-    "Semiconductors":             "SOXX",
-    "Aerospace & Defense":        "ITA",
-    "Oil & Gas":                  "XOP",
+    "Software & IT Services":     "IGV",   # vs IGM, XSW
+    "Semiconductors":             "SMH",   # vs SOXX, XSD ($67.8B vs $41.8B/$2.6B)
+    "Aerospace & Defense":        "ITA",   # vs XAR ($13.6B vs $5.9B)
+    "Oil & Gas E&P":              "XOP",
+    "Oil & Gas Equip & Services": "OIH",   # vs XES, IEZ ($2.0B vs $0.4B/$0.4B)
     "Internet & Digital Media":   "FDN",
+    "Cloud Computing":            "SKYY",  # vs CLOU ($3.4B vs $0.4B) — distinct
+                                            # theme from Internet & Digital Media
     "Infrastructure & Machinery": "PAVE",
     "Food & Beverage":            "PBJ",
     "Metals & Mining":            "XME",
-    "Gold Miners":                "GDX",
+    "Gold Miners":                "GDX",   # vs GDXJ (juniors — different tier)
     "Leisure & Restaurants":      "PEJ",
     "Auto":                       "CARZ",
-    "Telecom":                    "XTL",
+    "Telecom":                    "IYZ",   # vs XTL ($1.2B vs $0.6B)
     "Mortgage REITs":             "REM",
-    "Transportation":             "XTN",
+    "Transportation":             "IYT",   # vs XTN ($2.2B vs $0.4B)
     "Retail":                     "XRT",
-    "Homebuilders":               "XHB",
-    "Clean Energy & Solar":       "ICLN",
+    "Homebuilders":               "ITB",   # vs XHB ($2.4B vs $1.3B)
+    "Clean Energy & Solar":       "ICLN",  # vs PBW ($2-3B typical vs $0.4B)
+
+    # ── Real, liquid, verified-valid ETFs with NO stock mapping yet ──
+    # Listed for review; not yet in INDUSTRY_NAME_MAP below, so they show up
+    # in the Industry tab with real price/RS data but zero/near-zero stocks
+    # until mapped — per the plan to review before committing a mapping.
+    "Agribusiness":                "MOO",
+    "Robotics & AI":                "BOTZ",
+    "Lithium & Battery Tech":       "LIT",
+    "Uranium":                      "URA",
+    "FinTech":                      "FINX",
+    "Internet of Things":           "SNSR",
 }
 
 # tickers.industry (as actually observed in the live DB) -> INDUSTRY_ETF display name.
@@ -104,13 +133,13 @@ INDUSTRY_NAME_MAP: dict[str, str] = {
     "Semiconductor Equipment & Materials": "Semiconductors",
     # Aerospace & Defense
     "Aerospace & Defense": "Aerospace & Defense",
-    # Oil & Gas
-    "Oil & Gas E&P": "Oil & Gas",
-    "Oil & Gas Midstream": "Oil & Gas",
-    "Oil & Gas Equipment & Services": "Oil & Gas",
-    "Oil & Gas Refining & Marketing": "Oil & Gas",
-    "Oil & Gas Integrated": "Oil & Gas",
-    "Oil & Gas Drilling": "Oil & Gas",
+    # Oil & Gas — split upstream (E&P/midstream/integrated) from downstream/services
+    "Oil & Gas E&P": "Oil & Gas E&P",
+    "Oil & Gas Midstream": "Oil & Gas E&P",
+    "Oil & Gas Integrated": "Oil & Gas E&P",
+    "Oil & Gas Drilling": "Oil & Gas E&P",
+    "Oil & Gas Equipment & Services": "Oil & Gas Equip & Services",
+    "Oil & Gas Refining & Marketing": "Oil & Gas Equip & Services",
     # Internet & Digital Media
     "Internet Content & Information": "Internet & Digital Media",
     "Internet Retail": "Internet & Digital Media",
