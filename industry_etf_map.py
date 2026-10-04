@@ -18,21 +18,20 @@ the sector level). This trades 100% coverage for an index that is never
 empty: every mapped industry ETF is backed by real, actively-updated stock
 mappings.
 
-Where two+ ETFs track essentially the same theme (e.g. Biotech: XBI vs IBB),
-the pick was the more liquid one by real AUM/average-volume on yfinance, not
-a guess — see the inline comments in INDUSTRY_ETF for the numbers.
-
-INDUSTRY_ETF also lists real, verified-valid ETFs for themes that are NOT
-yet in INDUSTRY_NAME_MAP (e.g. Robotics & AI, Uranium, FinTech) — these show
-up in the Industry tab with real price/RS data but no stocks until a mapping
-is added; kept there deliberately for review before committing one.
+Where two+ ETFs track essentially the same theme (e.g. Biotech: XBI vs IBB,
+Oil & Gas: XOP vs OIH), the pick was the more liquid one by real AUM/
+average-volume pulled live from yfinance, not a guess or memory — see the
+inline comments in INDUSTRY_ETF for the numbers. Every entry here is a
+single ETF per theme (no near-duplicate rows for the same underlying
+basket) and has a confirmed non-empty stock mapping below — an index with
+zero stocks behind it is never shown.
 
 "Shell Companies" (pre-merger SPACs) is intentionally never mapped — it is
 not an investable theme, no ETF tracks it, and it would just be empty noise.
 
 Public API:
-  INDUSTRY_ETF      — {display name: ETF ticker}, mapped + unmapped-for-now
-  INDUSTRY_NAME_MAP — {tickers.industry value: display name} (mapped subset only)
+  INDUSTRY_ETF      — {display name: ETF ticker}
+  INDUSTRY_NAME_MAP — {tickers.industry value: display name}
   build_industry_index_map_rows(tickers) — extra rows for db.upsert_sector_index_map
 """
 
@@ -71,18 +70,11 @@ INDUSTRY_ETF: dict[str, str] = {
     "Retail":                     "XRT",
     "Homebuilders":               "ITB",   # vs XHB ($2.4B vs $1.3B)
     "Clean Energy & Solar":       "ICLN",  # vs PBW ($2-3B typical vs $0.4B)
-
-    # ── Real, liquid, verified-valid ETFs with NO stock mapping yet ──
-    # Listed for review; not yet in INDUSTRY_NAME_MAP below, so they show up
-    # in the Industry tab with real price/RS data but zero/near-zero stocks
-    # until mapped — per the plan to review before committing a mapping.
-    "Agribusiness":                "MOO",
-    "Robotics & AI":                "BOTZ",
-    "Lithium & Battery Tech":       "LIT",
-    "Uranium":                      "URA",
-    "FinTech":                      "FINX",
-    "Internet of Things":           "SNSR",
 }
+# Every entry above has a confirmed non-empty stock mapping — see
+# INDUSTRY_NAME_MAP below. (Previously this dict also listed MOO/BOTZ/LIT/
+# URA/FINX/SNSR as real-but-unmapped candidates for review; removed per
+# decision not to show any index with zero stocks behind it.)
 
 # tickers.industry (as actually observed in the live DB) -> INDUSTRY_ETF display name.
 # Deliberately many-to-one: related industry strings cluster onto one ETF.
