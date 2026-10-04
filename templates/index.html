@@ -817,7 +817,6 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <div class="tab-row" id="swingCatTabs">
             <button class="tab-pill" onclick="showSwingCat('BROAD')">Broad Market</button>
             <button class="tab-pill active" onclick="showSwingCat('SECTORAL')">Sectoral</button>
-            <button class="tab-pill" onclick="showSwingCat('STRATEGY')">Strategy</button>
           </div>
         </div>
         <div class="dash-nav-sep"></div>
@@ -1012,13 +1011,8 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
 
     <!-- Toolbar: single row, no-wrap, compact pill dropdowns -->
     <div class="hr-toolbar" style="padding:10px 16px;">
-      <!-- Equity / FnO toggle -->
-      <div class="hr-fno-toggle">
-        <button class="hr-fno-btn hr-fno-active" data-fno="equity" onclick="hrSetFnoFilter('equity')">Equity</button>
-        <button class="hr-fno-btn" data-fno="fno" onclick="hrSetFnoFilter('fno')">FnO</button>
-      </div>
       <!-- W 20>50 filter -->
-      <button class="hr-fno-btn" id="hrWEmaBtn" onclick="hrToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;margin-left:4px;">W 20&gt;50</button>
+      <button class="hr-fno-btn" id="hrWEmaBtn" onclick="hrToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;">W 20&gt;50</button>
       <!-- divider -->
       <div class="hr-tb-div"></div>
       <!-- Hawks Index -->
@@ -1032,10 +1026,10 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <div class="idx-multi-foot"><span id="hr_hawks_map_count">0 selected</span><button type="button" onclick="hrHmClear()">Clear</button></div>
         </div>
       </div>
-      <!-- Nifty Index -->
+      <!-- US Index -->
       <div class="idx-multi hr-dd" id="hr_idx_wrap">
         <button type="button" class="hr-dd-btn" id="hr_idx_btn" onclick="hrIdxToggle(event)">
-          <span id="hr_idx_label">Nifty Index</span><span class="hr-dd-caret">▾</span>
+          <span id="hr_idx_label">US Index</span><span class="hr-dd-caret">▾</span>
         </button>
         <div class="idx-multi-panel" id="hr_idx_panel" style="display:none;">
           <div class="idx-multi-search"><input type="text" id="hr_idx_search" placeholder="Search indices…" oninput="hrIdxRender()" autocomplete="off"/></div>
@@ -1098,27 +1092,10 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download CSV
         </button>
-        <!-- Fyers split-button group for Lens -->
-        <div class="fyers-split-btn" id="lhrFyersSplitWrap">
-          <button id="lhrFyersMainBtn" class="fyers-split-main btn-sm" onclick="_lhrFyersAuto()">
-            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Fyers Import
-          </button>
-          <button class="fyers-split-caret btn-sm" onclick="_lhrFyersSplitToggle(event)" aria-label="More import options">
-            <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="fyers-split-menu" id="lhrFyersSplitMenu" style="display:none;">
-            <button class="fyers-split-item" onclick="_lhrFyersAuto();_lhrFyersSplitClose()">
-              <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-              Auto Import <span style="font-size:.66rem;opacity:.6;margin-left:4px;">via Playwright</span>
-            </button>
-            <div class="fyers-split-divider"></div>
-            <button class="fyers-split-item" onclick="_lhrFyersManual();_lhrFyersSplitClose()">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Manual Import <span style="font-size:.66rem;opacity:.6;margin-left:4px;">.txt file</span>
-            </button>
-          </div>
-        </div>
+        <button class="btn btn-ghost btn-sm" onclick="_lhrExportTxt()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export .txt
+        </button>
       </div>
     </div>
 
@@ -1274,12 +1251,8 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
   <div class="card" style="padding:0;margin-bottom:0;">
     <div class="hr-toolbar" style="padding:10px 16px;">
       <div class="hr-tb-div"></div>
-      <div class="hr-fno-toggle">
-        <button class="hr-fno-btn hr-fno-active" data-sfno="equity" onclick="scanSetFno('equity')">Equity</button>
-        <button class="hr-fno-btn" data-sfno="fno" onclick="scanSetFno('fno')">FnO</button>
-      </div>
       <!-- W 20>50 filter -->
-      <button class="hr-fno-btn" id="scanWEmaBtn" onclick="scanToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;margin-left:4px;">W 20&gt;50</button>
+      <button class="hr-fno-btn" id="scanWEmaBtn" onclick="scanToggleWEma()" title="Weekly EMA20 > EMA50" style="border:1px solid var(--border);border-radius:7px;">W 20&gt;50</button>
       <div class="hr-tb-div"></div>
       <div class="idx-multi hr-dd" id="scan_hawks_map_wrap">
         <button type="button" class="hr-dd-btn" id="scan_hawks_map_btn" onclick="scanHmToggle(event)">
@@ -1293,7 +1266,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       </div>
       <div class="idx-multi hr-dd" id="scan_idx_wrap">
         <button type="button" class="hr-dd-btn" id="scan_idx_btn" onclick="scanIdxToggle(event)">
-          <span id="scan_idx_label">Nifty Index</span><span class="hr-dd-caret">▾</span>
+          <span id="scan_idx_label">US Index</span><span class="hr-dd-caret">▾</span>
         </button>
         <div class="idx-multi-panel" id="scan_idx_panel" style="display:none;">
           <div class="idx-multi-search"><input type="text" id="scan_idx_search" placeholder="Search indices…" oninput="scanIdxRender()" autocomplete="off"/></div>
@@ -1373,27 +1346,10 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download CSV
         </button>
-        <!-- Fyers split-button group -->
-        <div class="fyers-split-btn" id="fyersSplitWrap">
-          <button id="wlBtnScan" class="fyers-split-main btn-sm" onclick="_pushCurrentScanTabToWatchlist()">
-            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Fyers Import
-          </button>
-          <button class="fyers-split-caret btn-sm" onclick="_fyersSplitToggle(event)" aria-label="More import options">
-            <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="fyers-split-menu" id="fyersSplitMenu" style="display:none;">
-            <button class="fyers-split-item" onclick="_pushCurrentScanTabToWatchlist();_fyersSplitClose()">
-              <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-              Auto Import <span style="font-size:.66rem;opacity:.6;margin-left:4px;">via Playwright</span>
-            </button>
-            <div class="fyers-split-divider"></div>
-            <button class="fyers-split-item" onclick="_fyersManualImport();_fyersSplitClose()">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Manual Import <span style="font-size:.66rem;opacity:.6;margin-left:4px;">.txt file</span>
-            </button>
-          </div>
-        </div>
+        <button id="wlBtnScan" class="btn btn-ghost btn-sm" onclick="_exportCurrentScanTabTxt()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export .txt
+        </button>
       </div>
     </div>
 
@@ -1596,33 +1552,28 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
           <tr><td><code>sector:</code></td><td>Sector</td><td><code>sector:"information technology"</code></td></tr>
           <tr><td><code>industry:</code></td><td>Industry</td><td><code>industry:banks</code></td></tr>
           <tr><td><code>bi:</code></td><td>Basic industry</td><td><code>bi:refineries</code></td></tr>
-          <tr><td><code>index:</code></td><td>Any index membership</td><td><code>index:"nifty 50"</code></td></tr>
-          <tr><td><code>fno:</code></td><td>F&amp;O stock? yes/no</td><td><code>fno:yes</code></td></tr>
+          <tr><td><code>index:</code></td><td>Any index membership</td><td><code>index:"S&amp;P 500"</code></td></tr>
         </table>
-        <div class="dh-note"><strong>Multi-word values need quotes:</strong> <code>index:"nifty bank"</code> ✔ — without quotes only the first word is used.</div>
+        <div class="dh-note"><strong>Multi-word values need quotes:</strong> <code>index:"S&amp;P 500"</code> ✔ — without quotes only the first word is used.</div>
       </div>
 
       <div class="dh-section dh-ai">
-        <div class="dh-h">🧠 The "AI Brain" — Theme matching</div>
-        <p>This is the powerful part. When you type a plain keyword, the search doesn't just look at the obvious columns — <strong>it also reaches into every index the stock is a member of.</strong> Many NSE indices are <em>thematic</em> (NIFTY INDIA DEFENCE, NIFTY ENERGY, NIFTY HOUSING, NIFTY EV &amp; NEW AGE AUTOMOTIVE, NIFTY INDIA TOURISM, ESG, Shariah, corporate-group baskets, etc.).</p>
-        <p>So a stock can surface <strong>by theme even when none of its visible columns contain your word:</strong></p>
+        <div class="dh-h">🧠 Index membership matching</div>
+        <p>When you type a plain keyword, the search doesn't just look at the obvious columns — <strong>it also checks index membership</strong> (the <code>index_list</code> column, currently just "S&amp;P 500" for constituents of that index).</p>
         <ul>
-          <li>Type <code>defence</code> → finds every stock inside <strong>NIFTY INDIA DEFENCE</strong>, even if its sector just says "Capital Goods".</li>
-          <li>Type <code>energy</code> → pulls stocks in <strong>NIFTY ENERGY / NIFTY OIL &amp; GAS</strong> regardless of their literal sector label.</li>
-          <li>Type <code>tata</code> → surfaces companies in the <strong>NIFTY INDIA CORPORATE GROUP – TATA GROUP</strong> index, not only ones with "Tata" in the name.</li>
+          <li>Type <code>s&amp;p</code> or <code>500</code> → finds every S&amp;P 500 constituent, even though "S&amp;P 500" isn't its own visible column elsewhere.</li>
         </ul>
         <div class="dh-note dh-note-green"><strong>Two kinds of hit:</strong>
           <br>• <strong>Direct text match</strong> — your word literally appears in a visible cell (symbol / company / sector …).
-          <br>• <strong>Theme match</strong> — your word matched one of the stock's <em>index names</em> (the brain link). Expand the Indices column (the <code>+N</code> chip) to see <em>why</em> a row appeared.</div>
-        <div class="dh-note">Example you already saw: searching <code>bank</code> surfaced <strong>LTF</strong> — not because any cell said "bank", but because it sits in the index <strong>NIFTY FINANCIAL SERVICES EX-BANK</strong>. That's a theme match.</div>
+          <br>• <strong>Index match</strong> — your word matched the stock's index membership. Expand the Indices column (the <code>+N</code> chip) to see <em>why</em> a row appeared.</div>
       </div>
 
       <div class="dh-section">
         <div class="dh-h">🎯 Exact vs. Contains</div>
         <p>Use <code>:</code> for "contains" and <code>=</code> for "exactly equals".</p>
         <table class="dh-tbl">
-          <tr><td><code>index:"nifty 50"</code></td><td>Contains → also matches NIFTY 500, NIFTY 50 ARBITRAGE…</td></tr>
-          <tr><td><code>index="nifty 50"</code></td><td><strong>Exactly</strong> NIFTY 50 → the 50 large-caps only</td></tr>
+          <tr><td><code>index:"S&amp;P 500"</code></td><td>Contains → matches any index name containing "S&amp;P 500"</td></tr>
+          <tr><td><code>index="S&amp;P 500"</code></td><td><strong>Exactly</strong> "S&amp;P 500" → current constituents only</td></tr>
         </table>
       </div>
 
@@ -1644,17 +1595,14 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       <div class="dh-section">
         <div class="dh-h">🏷️ Index group buttons</div>
         <table class="dh-tbl">
-          <tr><td><strong>Broad Market</strong></td><td>NIFTY 100/200/500, Midcap, Smallcap…</td></tr>
-          <tr><td><strong>Sectoral</strong></td><td>NIFTY IT, AUTO, PHARMA, METAL…</td></tr>
-          <tr><td><strong>Strategy</strong></td><td>Quality, Alpha, Value, Momentum, Low-Vol…</td></tr>
-          <tr><td><strong>Thematic</strong></td><td>Theme baskets — Defence, Energy, ESG, group indices…</td></tr>
-          <tr><td><strong>Derivatives</strong></td><td>The 211 <strong>F&amp;O stocks</strong> (uses the real F&amp;O flag, not index names).</td></tr>
+          <tr><td><strong>Broad Market</strong></td><td>S&amp;P 500, Nasdaq 100, Dow Jones, Russell 2000 (SPY/QQQ/DIA/IWM).</td></tr>
+          <tr><td><strong>Sectoral</strong></td><td>The 11 GICS sectors, via their Sector SPDR ETF (XLK, XLF, XLE, XLV…).</td></tr>
         </table>
       </div>
 
       <div class="dh-section">
         <div class="dh-h">⚡ Quick &amp; Saved filters</div>
-        <p>One-click presets (NIFTY 50, Banking, IT). Build any search, hit <strong>＋ Save</strong> to name and store it — saved filters persist in your browser and reappear as buttons.</p>
+        <p>One-click presets (Equity, S&amp;P 500). Build any search, hit <strong>＋ Save</strong> to name and store it — saved filters persist in your browser and reappear as buttons.</p>
       </div>
 
       <div class="dh-section">
@@ -1672,13 +1620,12 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <!-- Quick filters -->
         <span class="qf-label" style="flex-shrink:0;">Quick:</span>
         <button class="qf-chip" data-qf="equity" onclick="applyQuickFilter('equity')">Equity</button>
-        <button class="qf-chip" data-qf="fno" onclick="applyQuickFilter('fno')">FnO</button>
-        <button class="qf-chip" data-qf="nifty500" onclick="applyQuickFilter('nifty500')">Nifty 500</button>
+        <button class="qf-chip" data-qf="sp500" onclick="applyQuickFilter('sp500')">S&amp;P 500</button>
         <span id="savedQfWrap"></span>
         <button class="qf-chip qf-save" onclick="saveCurrentAsQuickFilter()" title="Save current filters as a quick filter">＋ Save</button>
         <!-- divider -->
         <div class="hr-tb-div"></div>
-        <!-- Classification dropdowns: Hawks Index + Nifty Index first, then classification -->
+        <!-- Classification dropdowns: Hawks Index + US Index first, then classification -->
         <div class="idx-multi hr-dd" id="hawksMapWrap">
           <button type="button" class="hr-dd-btn" id="hawksMapBtn" onclick="hmToggle(event)">
             <span id="hawksMapLabel">Hawks Index</span><span class="hr-dd-caret">▾</span>
@@ -1691,7 +1638,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         </div>
         <div class="idx-multi hr-dd" id="idxMultiWrap">
           <button type="button" class="hr-dd-btn" id="idxMultiBtn" onclick="toggleIdxMulti(event)">
-            <span id="idxMultiLabel">Nifty Index</span><span class="hr-dd-caret">▾</span>
+            <span id="idxMultiLabel">US Index</span><span class="hr-dd-caret">▾</span>
           </button>
           <div class="idx-multi-panel" id="idxMultiPanel" style="display:none;">
             <div class="idx-multi-search"><input type="text" id="idxMultiSearch" placeholder="Search indices…" oninput="renderIdxMulti()" autocomplete="off"/></div>
@@ -2323,36 +2270,36 @@ async function loadPricesInfo(){
    All rows loaded once into _allTickerRows; every filter runs client-side.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const BROAD_NAMES = ['NIFTY 100','NIFTY 200','NIFTY 500','NIFTY MIDCAP','NIFTY SMALLCAP','NIFTY MID','NIFTY LARGEMID','NIFTY TOTAL','NIFTY MICRO','NIFTY500 MULTICAP'];
-const SECTORAL_NAMES = ['NIFTY AUTO','NIFTY FINANCIAL SERVICES 25','NIFTY FMCG','NIFTY IT','NIFTY MEDIA','NIFTY METAL','NIFTY PHARMA','NIFTY PSU BANK','NIFTY PRIVATE BANK','NIFTY REALTY','NIFTY HEALTHCARE','NIFTY CONSUMER DURABLES','NIFTY OIL','NIFTY CHEMICALS'];
-const STRATEGY_NAMES = ['QUALITY','ALPHA','VALUE','MOMENTUM','VOLATILITY','EQUAL WEIGHT','HIGH BETA','LOW VOLATILITY','DIVIDEND'];
-const DERIV_NAMES = ['NIFTY 50','NIFTY NEXT 50','NIFTY BANK','NIFTY FINANCIAL SERVICES','NIFTY MIDCAP SELECT'];
+// US index membership is just "S&P 500" (index_list, from universe.py) and
+// one GICS-sector→Sector-SPDR-ETF mapping per stock (hawks_mappings, from
+// sector_etf_map.py) — a flat 2-category model, unlike NSE's ~80 fuzzy-matched
+// thematic/strategy index names.
+const BROAD_NAMES = ['S&P 500'];
 
 function _idxCatFor(name){
-  if(DERIV_NAMES.some(d=>name===d)) return 'DERIVATIVES';
-  if(SECTORAL_NAMES.some(s=>name.includes(s.split(' ')[1]||s))) return 'SECTORAL';
-  if(STRATEGY_NAMES.some(s=>name.toUpperCase().includes(s))) return 'STRATEGY';
-  if(BROAD_NAMES.some(b=>name.toUpperCase().includes(b.toUpperCase())||name.includes('MULTICAP'))) return 'BROAD';
-  return 'THEMATIC';
+  if(BROAD_NAMES.includes(name)) return 'BROAD MARKET';
+  return 'SECTORAL';
 }
-function _idxPillClass(name){return _idxCatFor(name).toLowerCase();}
+function _idxPillClass(name){return _idxCatFor(name)==='BROAD MARKET' ? 'broad' : 'sectoral';}
 
-/* ── index group classifier for the multi-select picker (3 groups, no dupes) ──
-   Priority: Strategy (factor) > Broad Market (size) > Sectors (everything else) */
-const _IDXG_STRATEGY = ['QUALITY','ALPHA','VALUE','MOMENTUM','VOLATILITY','EQUAL WEIGHT','HIGH BETA','LOW VOL','DIVIDEND','MULTIFACTOR','MQVLV','CORPORATE GROUP','ESG','SHARIAH','HEALTHCARE'];
-const _IDXG_BROAD = ['NIFTY 50','NIFTY NEXT 50','NIFTY 100','NIFTY 200','NIFTY 500','MIDCAP','SMALLCAP','MICROCAP','LARGEMID','MIDSMALL','TOTAL MARKET','MULTICAP','MIDCAP SELECT','LIQUID 15','TOP 10','TOP 15','TOP 20'];
+// Known index/ETF tickers (4 broad-market + 11 sector SPDR ETFs — mirrors
+// index_data.SYMBOLS). Stocks and indices are both plain tickers with no
+// distinguishing prefix/suffix (unlike NSE's "NSE:...-INDEX" convention), so
+// chart-opening / score-lookup code must check membership in this set instead
+// of a string-shape test like `sym.endsWith('-INDEX')`.
+const US_INDEX_SYMBOLS = new Set(['SPY','QQQ','DIA','IWM','XLE','XLB','XLI','XLY','XLP','XLV','XLF','XLK','XLC','XLU','XLRE']);
+function _isIndexSymbol(sym){ return US_INDEX_SYMBOLS.has(String(sym||'').replace(/^\^/,'')); }
+
+/* ── index group classifier for the multi-select picker (2 groups, no dupes) */
 function _idxGroupFor(name){
-  const u=(name||'').toUpperCase();
-  if(_IDXG_STRATEGY.some(k=>u.includes(k))) return 'STRATEGY';
-  if(_IDXG_BROAD.some(k=>u.includes(k)))    return 'BROAD';
-  return 'SECTORS';
+  return BROAD_NAMES.includes(name) ? 'BROAD' : 'SECTORS';
 }
 // display order requested by user
-const IDX_GROUP_ORDER = [['SECTORS','Sectors'],['BROAD','Broad Market'],['STRATEGY','Strategy']];
+const IDX_GROUP_ORDER = [['SECTORS','Sectors'],['BROAD','Broad Market']];
 
 // ── global directory state ──
 let _allTickerRows = [];       // every stock, loaded once
-let _idxCatFilter  = 'ALL';    // ALL | BROAD | SECTORAL | STRATEGY | THEMATIC | DERIVATIVES
+let _idxCatFilter  = 'ALL';    // ALL | BROAD MARKET | SECTORAL
 let _filterTree    = {};       // macro → sector → industry → [basic_industry]
 let _allIndexNames = [];       // unique sorted index names (for autocomplete)
 let _idxSelected   = new Set();// multi-selected index names (OR/union filter)
@@ -2368,7 +2315,7 @@ const escHtml = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<'
 
 /* ── smart query parser ──────────────────────────────────────────────────────
    Supports: field:value   field:"two words"   plain words (match all columns)
-   Fields: sym, co/company, macro, sector, industry, bi, index/idx, fno
+   Fields: sym, co/company, macro, sector, industry, bi, index/idx
    Returns {tokens:[{field,value,raw}], free:[words]}                            */
 const FIELD_ALIASES = {
   sym:'symbol', symbol:'symbol', ticker:'symbol',
@@ -2377,8 +2324,7 @@ const FIELD_ALIASES = {
   sector:'sector', sec:'sector',
   industry:'industry', ind:'industry',
   bi:'basic_industry', basic:'basic_industry',
-  index:'index', idx:'index',
-  fno:'fno', fo:'fno', deriv:'fno'
+  index:'index', idx:'index'
 };
 function parseSmartQuery(str){
   const tokens=[], free=[];
@@ -2415,7 +2361,7 @@ function _cmp(haystack,v,exact){
 }
 function _rowMatchesToken(t,tok){
   const v=tok.value, ex=tok.exact;
-  if(!v && tok.field!=='fno') return true;
+  if(!v) return true;
   switch(tok.field){
     case 'symbol':         return _cmp(t.symbol,v,ex);
     case 'company_name':   return _cmp(t.company_name,v,ex);
@@ -2424,10 +2370,6 @@ function _rowMatchesToken(t,tok){
     case 'industry':       return _cmp(t.industry,v,ex);
     case 'basic_industry': return _cmp(t.basic_industry,v,ex);
     case 'index':          return (t.index_list||[]).some(i=>_cmp(i,v,ex));
-    case 'fno':{
-      const yes=['yes','y','true','1','only'].includes(v) || v==='';
-      return yes ? !!t.is_fno : !t.is_fno;
-    }
   }
   return true;
 }
@@ -2480,13 +2422,9 @@ function applyAllFilters(){
     if(_msSel.basic_industry.size && !_msSel.basic_industry.has(t.basic_industry)) return false;
     // index multi-select (OR/union — stock must be in ANY selected index)
     if(idxSel.size && !(t.index_list||[]).some(i=>idxSel.has(i))) return false;
-    // index category
+    // index category (matches against index_list membership, e.g. "S&P 500")
     if(_idxCatFilter!=='ALL'){
-      if(_idxCatFilter==='DERIVATIVES'){
-        if(!t.is_fno) return false;
-      } else {
-        if(!(t.index_list||[]).some(i=>_idxCatFor(i)===_idxCatFilter)) return false;
-      }
+      if(!(t.index_list||[]).some(i=>_idxCatFor(i)===_idxCatFilter)) return false;
     }
     // hawks mappings filters (dropdown + confidence checkboxes)
     {
@@ -2553,7 +2491,7 @@ function _renderRows(rows){
   // repeated reflow — much faster than createElement loops for 2000+ rows.
   const html=rows.map(t=>{
     return `<tr>
-      <td><span class="dir-sym">${escHtml(t.symbol)}</span>${t.is_fno?' <span class="idx-pill derivatives" style="font-size:.55rem;padding:0 4px;">F&amp;O</span>':''}</td>
+      <td><span class="dir-sym">${escHtml(t.symbol)}</span></td>
       <td title="${escHtml(t.company_name)}"><span class="dir-co">${escHtml(t.company_name)||'—'}</span></td>
       <td title="${escHtml(t.macro)}"><span class="pill ${macroClass(t.macro)}" style="font-size:.61rem;padding:2px 7px;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;">${escHtml(t.macro)||'—'}</span></td>
       <td title="${escHtml(t.sector)}"><span class="dir-sector" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.sector)||'—'}</span></td>
@@ -2968,8 +2906,8 @@ function toggleIdxMulti(e){
   if(open){ renderIdxMulti(); setTimeout(()=>document.getElementById('idxMultiSearch').focus(),0); }
 }
 function _groupedIndices(){
-  // {SECTORS:[...], BROAD:[...], STRATEGY:[...]} from _allIndexNames
-  const g={SECTORS:[],BROAD:[],STRATEGY:[]};
+  // {SECTORS:[...], BROAD:[...]} from _allIndexNames
+  const g={SECTORS:[],BROAD:[]};
   _allIndexNames.forEach(n=>g[_idxGroupFor(n)].push(n));
   return g;
 }
@@ -2981,7 +2919,7 @@ function renderIdxMulti(){
   const cascadeNames=new Set(cascadeRows.flatMap(t=>t.index_list||[]));
   // also keep already-selected names visible
   _idxSelected.forEach(n=>cascadeNames.add(n));
-  const g={SECTORS:[],BROAD:[],STRATEGY:[]};
+  const g={SECTORS:[],BROAD:[]};
   [...cascadeNames].sort().forEach(n=>g[_idxGroupFor(n)].push(n));
   let html='';
   IDX_GROUP_ORDER.forEach(([key,label])=>{
@@ -3073,7 +3011,7 @@ function _updateIdxMultiLabel(){
   const cnt=document.getElementById('idxMultiCount');
   const n=_idxSelected.size;
   if(cnt) cnt.textContent=`${n} selected`;
-  if(n===0){ lbl.textContent='Nifty Index'; btn.classList.remove('has-sel'); }
+  if(n===0){ lbl.textContent='US Index'; btn.classList.remove('has-sel'); }
   else if(n===1){ lbl.textContent=[..._idxSelected][0]; btn.classList.add('has-sel'); }
   else { lbl.textContent=`${n} indices selected`; btn.classList.add('has-sel'); }
   _updateDirClearBtn();
@@ -3087,9 +3025,8 @@ document.addEventListener('click',e=>{
 
 /* ═══ QUICK FILTERS ═══ */
 const QUICK_PRESETS={
-  equity:  {label:'Equity',   apply:()=>{ resetFilters(); }},   // all 2100+ stocks
-  fno:     {label:'FnO',      apply:()=>{ _appendSmart('fno:yes'); }},
-  nifty500:{label:'Nifty 500',apply:()=>{ _appendSmart('index="NIFTY 500"'); }},
+  equity: {label:'Equity',  apply:()=>{ resetFilters(); }},   // all stocks
+  sp500:  {label:'S&P 500', apply:()=>{ _appendSmart('index="S&P 500"'); }},
 };
 function _appendSmart(frag){
   const inp=document.getElementById('smartQuery');
@@ -3112,7 +3049,7 @@ function _syncQuickActive(){
   document.querySelectorAll('.qf-chip[data-qf]').forEach(btn=>{
     const k=btn.getAttribute('data-qf');
     if(k==='equity'){ btn.classList.toggle('active', noFilters); return; }
-    const frag={fno:'fno:',nifty500:'nifty 500'}[k]||'';
+    const frag={sp500:'s&p 500'}[k]||'';
     btn.classList.toggle('active', frag && q.includes(frag));
   });
 }
@@ -3350,11 +3287,10 @@ function downloadDirectory(){
   // export currently filtered rows (client-side)
   const rows=_filteredRows&&_filteredRows.length?_filteredRows:_allTickerRows;
   if(!rows.length){showToast('No data.',true);return;}
-  const h=['Symbol','Company','ISIN','Macro','Sector','Industry','Basic Industry','F&O','Indices'];
+  const h=['Symbol','Company','Macro','Sector','Industry','Basic Industry','Indices'];
   const esc=v=>`"${(v==null?'':String(v)).replace(/"/g,'""')}"`;
   const lines=[h.map(esc).join(','),...rows.map(r=>[
-    r.symbol,r.company_name,r.isin,r.macro,r.sector,r.industry,r.basic_industry,
-    r.is_fno?'Yes':'No',
+    r.symbol,r.company_name,r.macro,r.sector,r.industry,r.basic_industry,
     (r.index_list||[]).join(' | ')
   ].map(esc).join(','))];
   const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
@@ -3777,25 +3713,16 @@ let _swingData   = null;
 let _swingPeerScores = {};  // { indexName: {short, mid} } — populated by renderSwingRadar, read by Hunt overlay
 let _swingCat    = 'SECTORAL';
 
-// Mirror exact same grouping as Market Heatmap
+// US index universe is a clean 15-symbol set (4 broad-market + 11 sector SPDR
+// ETFs) with no cross-listed/overlapping categories, so no exclude/extra
+// lists are needed (those existed only for NSE's cross-listed derivative
+// indices like NIFTYBANK/FINNIFTY).
 const _SWING_CAT_MAP = {
-  'BROAD':    ['DERIVATIVES', 'BROAD MARKET'],
-  'SECTORAL': ['SECTORAL', 'THEMATIC'],
-  'STRATEGY': ['STRATEGY'],
+  'BROAD':    ['BROAD MARKET'],
+  'SECTORAL': ['SECTORAL'],
 };
-const _SWING_EXCLUDE = {
-  'BROAD': new Set([
-    'NSE:NIFTYBANK-INDEX',
-    'NSE:FINNIFTY-INDEX',
-  ]),
-  'SECTORAL': new Set([
-    'NSE:NIFTY100LIQ15-INDEX','NSE:NIFTYMIDLIQ15-INDEX',
-    'NSE:NIFTY100ESG-INDEX','NSE:NIFTY100ENHESG-INDEX','NSE:NIFTYTATA25CAP-INDEX',
-  ]),
-};
-const _SWING_EXTRA = {
-  'SECTORAL': ['NSE:NIFTYBANK-INDEX','NSE:FINNIFTY-INDEX'],
-};
+const _SWING_EXCLUDE = {};
+const _SWING_EXTRA = {};
 
 function showSwingCat(cat) {
   _swingCat = cat;
@@ -4364,7 +4291,7 @@ function hrIdxToggle(e) {
   if (open) { hrIdxRender(); setTimeout(() => { document.getElementById('hr_idx_search').focus(); _fixPanelOverflow('hr_idx_panel'); }, 0); }
 }
 function _hrIdxGrouped() {
-  const g = {SECTORS:[], BROAD:[], STRATEGY:[]};
+  const g = {SECTORS:[], BROAD:[]};
   const stocks = _hrCascadeFilter(_hrData?.stocks || [], '__idx__');
   const all = [...new Set(stocks.flatMap(s => s.index_list || []).filter(Boolean))].sort();
   all.forEach(n => g[_idxGroupFor(n)].push(n));
@@ -4407,7 +4334,7 @@ function _hrIdxUpdateLabel() {
   const cnt = document.getElementById('hr_idx_count');
   const n = _hrIdxSelected.size;
   if (cnt) cnt.textContent = `${n} selected`;
-  if (n === 0) { lbl.textContent = 'Nifty Index'; btn.classList.remove('has-sel'); }
+  if (n === 0) { lbl.textContent = 'US Index'; btn.classList.remove('has-sel'); }
   else if (n === 1) { lbl.textContent = [..._hrIdxSelected][0]; btn.classList.add('has-sel'); }
   else { lbl.textContent = `${n} indices selected`; btn.classList.add('has-sel'); }
 }
@@ -4450,8 +4377,6 @@ function hrFilterAndRender() {
   const q = (document.getElementById('hrSearch')?.value || '').trim().toLowerCase();
   let items = _hrData.stocks || [];
   if (q) items = items.filter(s => s.symbol.toLowerCase().includes(q) || (s.company_name||'').toLowerCase().includes(q));
-  // Equity / FnO toggle
-  if (_hrFnoFilter === 'fno') items = items.filter(s => s.is_fno);
   // Weekly EMA20 > EMA50 filter
   if (_hrWEmaFilter) items = items.filter(s => s.w_ema_bull === true);
   // Multi-select classification filters
@@ -4912,7 +4837,7 @@ function _preseedHuntFiltersFromLens() {
   // Copy Hawks Index selections from Lens → Hunt
   _hrHawksSel.forEach(v => _scanHawksSel.add(v));
   _scanHmUpdateLabel();
-  // Copy Nifty Index selections from Lens → Hunt
+  // Copy US Index selections from Lens → Hunt
   _hrIdxSelected.forEach(v => _scanIdxSelected.add(v));
   _scanIdxUpdateLabel();
   // Copy Macro/Sector/Industry/Basic Industry from Lens → Hunt
@@ -6307,29 +6232,13 @@ function _downloadLens() {
   a.download = `lens_${date}.csv`; a.click();
 }
 
-// ── Lens Fyers Import ─────────────────────────────────────────────────────────
-function _lhrFyersSplitToggle(e) {
-  e.stopPropagation();
-  const m = document.getElementById('lhrFyersSplitMenu');
-  if (!m) return;
-  const open = m.style.display === 'none';
-  m.style.display = open ? 'block' : 'none';
-  if (open) {
-    const close = ev => { if (!document.getElementById('lhrFyersSplitWrap')?.contains(ev.target)) _lhrFyersSplitClose(); };
-    document.addEventListener('click', close, { once: true });
-  }
-}
-function _lhrFyersSplitClose() {
-  const m = document.getElementById('lhrFyersSplitMenu');
-  if (m) m.style.display = 'none';
-}
-
-function _lhrFyersManual() {
+// ── Lens symbol export ────────────────────────────────────────────────────────
+function _lhrExportTxt() {
   let items = _hrFiltered || [];
   if (!items.length) { showToast('No results to export.', true); return; }
   if (_lhrSelection.size > 0) items = items.filter(s => _lhrSelection.has(s.symbol));
   if (!items.length) { showToast('No stocks to export.', true); return; }
-  const formatted = items.map(s => `NSE:${s.symbol}-${s.series||'EQ'}`);
+  const formatted = items.map(s => s.symbol);
   const CHUNK = 250;
   const date = new Date().toISOString().slice(0, 10);
   const total = Math.ceil(formatted.length / CHUNK);
@@ -6340,34 +6249,10 @@ function _lhrFyersManual() {
     const blob = new Blob([chunk.join(',')], { type: 'text/plain;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `fyers_lens_${date}${suffix}.txt`;
+    a.download = `lens_${date}${suffix}.txt`;
     a.click();
   }
   showToast(`Downloaded ${items.length} symbols across ${total} file${total > 1 ? 's' : ''}`);
-}
-
-async function _lhrFyersAuto() {
-  let items = _hrFiltered || [];
-  if (!items.length) { showToast('No results to push.', true); return; }
-  if (_lhrSelection.size > 0) items = items.filter(s => _lhrSelection.has(s.symbol));
-  if (!items.length) { showToast('No stocks to push.', true); return; }
-  const symbols = items.map(s => s.symbol);
-  const btn = document.getElementById('lhrFyersMainBtn');
-  if (btn) btn.textContent = 'Pushing…';
-  try {
-    const r = await fetch('/api/watchlist-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbols, name: 'ChartHawks_Lens' }),
-    });
-    const d = await r.json();
-    if (!r.ok || !d.ok) throw new Error(d.error || 'push failed');
-    if (btn) { btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/></svg> Done!'; setTimeout(() => { btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg> Fyers Import'; }, 2000); }
-    showToast(`Pushed ${d.count ?? symbols.length} symbols${d.batches > 1 ? ` in ${d.batches} batches` : ''}`);
-  } catch(e) {
-    if (btn) btn.textContent = 'Fyers Import';
-    showToast('Fyers push failed: ' + e.message, true);
-  }
 }
 
 function _updateTabBar() {
@@ -6402,16 +6287,6 @@ async function _runTabScan() {
     _setScanStatus('merged', 'error', 'Error: ' + e);
   }
 }
-
-// A few index master display-names differ from NSE's official index_list
-// membership string, so matching by display-name returns 0 stocks. Translate
-// those (and only those) to the exact membership string before filtering.
-// Verified against live nse_tickers.index_list: 30 / 10 / 100 stocks respectively.
-const _IDX_NAME_ALIAS = {
-  'NIFTY ALPHA QUALITY LOW-VOL 30':   'NIFTY ALPHA QUALITY LOW-VOLATILITY 30',
-  'NIFTY INDIA CORP GROUP - TATA 25%':'NIFTY INDIA CORPORATE GROUP INDEX - TATA GROUP 25% CAP',
-  'NIFTY SMALLCAP250 MQ100':          'NIFTY SMALLCAP250 MOMENTUM QUALITY 100',
-};
 
 function _goToStocksLensFromTab() {
   const names = [...new Set([..._eyeSelection, ..._strikeSelection])];
@@ -6704,7 +6579,7 @@ function scanIdxRender(){
   if(q)vals=vals.filter(v=>v.toLowerCase().includes(q));
   const allSel=vals.length>0&&vals.every(v=>_scanIdxSelected.has(v));
   let html='';
-  if(vals.length>1)html+=`<div class="idx-grp-head">Nifty Index<span class="idx-grp-all" onclick="scanIdxToggleAll(${!allSel})">${allSel?'clear':'select all'}</span></div>`;
+  if(vals.length>1)html+=`<div class="idx-grp-head">US Index<span class="idx-grp-all" onclick="scanIdxToggleAll(${!allSel})">${allSel?'clear':'select all'}</span></div>`;
   vals.forEach(v=>{const ck=_scanIdxSelected.has(v);html+=`<label class="idx-opt${ck?' checked':''}"><input type="checkbox" ${ck?'checked':''} onchange="scanIdxToggleOpt(this,'${escAttr(v)}')"/> ${escHtml(v)}</label>`;});
   list.innerHTML=html||'<div style="padding:14px;color:var(--text3);font-size:.76rem;">No values.</div>';
   _scanIdxUpdateLabel();
@@ -6723,7 +6598,7 @@ function _scanIdxUpdateLabel(){
   const cnt=document.getElementById('scan_idx_count');
   const n=_scanIdxSelected.size;
   if(cnt)cnt.textContent=`${n} selected`;
-  if(n===0){if(lbl)lbl.textContent='Nifty Index';if(btn)btn.classList.remove('has-sel');}
+  if(n===0){if(lbl)lbl.textContent='US Index';if(btn)btn.classList.remove('has-sel');}
   else if(n===1){if(lbl)lbl.textContent=[..._scanIdxSelected][0];if(btn)btn.classList.add('has-sel');}
   else{if(lbl)lbl.textContent=`${n} indices`;if(btn)btn.classList.add('has-sel');}
   _updateScanClearBtn();
@@ -6768,10 +6643,9 @@ function _applyScanFilters(rows){
   const q=(document.getElementById('scanSearch')?.value||'').trim().toLowerCase();
   const hasDropdownFilter=Object.values(_scanMsSel).some(s=>s.size)||_scanHawksSel.size||_scanIdxSelected.size;
 
-  // global gates: Watchlist mode, FnO toggle and search apply to everything
+  // global gates: Watchlist mode and search apply to everything
   let items=rows;
   if(_watchlistMode) items=items.filter(r=>_watchlist.has(r.symbol));
-  if(_scanFnoFilter==='fno') items=items.filter(r=>r.is_fno);
   if(q) items=items.filter(r=>r.symbol.toLowerCase().includes(q)||(r.company_name||'').toLowerCase().includes(q));
 
   // if no scope and no dropdowns, return all (after global gates)
@@ -6789,33 +6663,12 @@ function _applyScanFilters(rows){
   return _applyShfFilter(scoped);
 }
 
-// header download/watchlist wrappers
+// header download/export wrappers
 function _downloadCurrentScanTab(){
   _downloadMerged();
 }
-async function _pushCurrentScanTabToWatchlist(){
-  await _pushMergedToWatchlist();
-}
-
-function _fyersSplitToggle(e){
-  e.stopPropagation();
-  const m=document.getElementById('fyersSplitMenu');
-  if(!m)return;
-  const open=m.style.display==='none';
-  m.style.display=open?'block':'none';
-  if(open){
-    // close on outside click
-    const close=ev=>{if(!document.getElementById('fyersSplitWrap')?.contains(ev.target)){_fyersSplitClose();}};
-    document.addEventListener('click',close,{once:true});
-  }
-}
-function _fyersSplitClose(){
-  const m=document.getElementById('fyersSplitMenu');
-  if(m)m.style.display='none';
-}
-
-function _fyersManualImport(){
-  // Resolve which rows to export: selection → filtered fallback, matching Fyers Watchlist logic
+function _exportCurrentScanTabTxt(){
+  // Resolve which rows to export: selection → filtered fallback.
   const rows=_lastScanResults[_huntDirection]||[];
   if(!rows.length){showToast('No results to export.',true);return;}
   const rawRows=rows.map(r=>({...r,latest_date:_latestDate(r)}));
@@ -6825,8 +6678,7 @@ function _fyersManualImport(){
   if(sel) merged=merged.filter(r=>sel.has(r.symbol));
   if(!merged.length){showToast('No stocks to export.',true);return;}
 
-  // Format as NSE:SYM-SERIES (preserve actual series from DB, not hardcoded -EQ)
-  const formatted=merged.map(r=>`NSE:${r.symbol}-${r.series||'EQ'}`);
+  const formatted=merged.map(r=>r.symbol);
 
   // Split into chunks of 250 and trigger one download per chunk
   const CHUNK=250;
@@ -6839,10 +6691,10 @@ function _fyersManualImport(){
     const blob=new Blob([chunk.join(',')],{type:'text/plain;charset=utf-8;'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`fyers_import_${_huntDirection}_${date}${suffix}.txt`;
+    a.download=`scan_export_${_huntDirection}_${date}${suffix}.txt`;
     a.click();
   }
-  showToast(`Downloaded ${symbols.length} symbols across ${total} file${total>1?'s':''}`);
+  showToast(`Downloaded ${formatted.length} symbols across ${total} file${total>1?'s':''}`);
 }
 
 function _fmtSigDate(d){
@@ -6855,11 +6707,29 @@ function _fmtEpochTime(ep){
   if(ep==null)return null;
   const n=parseInt(ep);
   if(isNaN(n))return null;
-  // epoch (seconds) → IST (UTC+5:30)
-  const d=new Date((n+19800)*1000);
-  const hh=String(d.getUTCHours()).padStart(2,'0');
-  const mm=String(d.getUTCMinutes()).padStart(2,'0');
-  return hh+':'+mm;
+  // epoch (seconds) → America/New_York, DST-aware (unlike IST's fixed UTC+5:30)
+  const d=new Date(n*1000);
+  return d.toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+// epoch (seconds) → {dd,mon,hh,mm} in America/New_York, DST-aware. Used
+// everywhere a chart/axis needs to show US market-session local time from a
+// UTC epoch, instead of the fixed +19800s (IST) offset trick NSE could use.
+function _etDateTimeParts(ep){
+  const d = new Date(ep * 1000);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value;
+  let hh = get('hour'); if (hh === '24') hh = '00';
+  return { dd: get('day'), mon: get('month'), hh, mm: get('minute') };
+}
+
+// epoch (seconds) → 'YYYY-MM-DD' calendar date in America/New_York (en-CA
+// locale formats as YYYY-MM-DD directly), DST-aware.
+function _etDateStr(ep){
+  return new Date(ep * 1000).toLocaleDateString('en-CA', {timeZone: 'America/New_York'});
 }
 
 /* Daily signal cell: M-date chip + Daily Cross date chip */
@@ -7066,26 +6936,6 @@ function _downloadMerged(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`daily_hunt_${_huntDirection}_${new Date().toISOString().slice(0,10)}.csv`;a.click();
 }
-async function _pushMergedToWatchlist(){
-  const rows=_lastScanResults[_huntDirection]||[];
-  if(!rows.length){showToast('No results to push.',true);return;}
-  const rawRows=rows.map(r=>({...r,latest_date:_latestDate(r)}));
-  let filtered=_applyScanFilters(_applyDaysFilter(rawRows));
-  if(!filtered.length){showToast('No results to push after filters.',true);return;}
-  const selSyms=_dhSelection.size>0?_dhSelection:null;
-  if(selSyms) filtered=filtered.filter(r=>selSyms.has(r.symbol));
-  if(!filtered.length){showToast('No selected stocks to push.',true);return;}
-  const symbols=filtered.map(r=>r.symbol);
-  const name='ChartHawks_Scan';
-  const btn=document.getElementById('wlBtnScan');
-  const orig=btn.innerHTML;btn.disabled=true;btn.textContent='Opening Fyers...';
-  try{
-    const d=await(await fetch('/api/watchlist-push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols,name})})).json();
-    if(d.ok){btn.textContent='Done!';const msg=d.batches>1?`Watchlist pushed in ${d.batches} batches (${d.count} symbols)`:'Watchlist updated!';showToast(msg);setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000);}
-    else{showToast('Push failed: '+(d.error||'Unknown'),true);btn.innerHTML=orig;btn.disabled=false;}
-  }catch(e){showToast('Request failed: '+e,true);btn.innerHTML=orig;btn.disabled=false;}
-}
-
 // ── Trade Ideas tabs ──
 function switchIdeasTab(tab){
   const panels={dailycross:'ideasPanelDailyCross'};
@@ -7786,7 +7636,7 @@ function jrnlRenderDetail(entry){
     <div>
       <div style="font-size:1.15rem;font-weight:800;color:var(--text);">${entry.symbol} ${zoneBadge}</div>
       <div style="font-size:.78rem;color:var(--text2);">${id.company_name||''}</div>
-      <div style="font-size:.7rem;color:var(--text3);margin-top:2px;">${id.macro||''} · ${id.sector||''} · ${id.industry||''}${id.is_fno?' · <b style="color:var(--blue)">FnO</b>':''}</div>
+      <div style="font-size:.7rem;color:var(--text3);margin-top:2px;">${id.macro||''} · ${id.sector||''} · ${id.industry||''}</div>
       <div style="font-size:.66rem;color:var(--text3);margin-top:3px;">📸 Snapshot data as-of <b>${s.data_as_of||'?'}</b> · captured ${(s.captured_at||'').replace('T',' ')}</div>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -8490,17 +8340,13 @@ function jrnlExportCSV(){
     const priceEl = document.getElementById(priceId);
     if (!priceEl || !data || !data.candles || !data.candles.length) return null;
 
-    // Hourly chart: timestamps are UTC epoch; use a custom formatter that adds
-    // IST offset (+19800s) so the axis always shows 09:15…15:30 IST regardless
-    // of the browser's local timezone.
+    // Hourly chart: timestamps are UTC epoch; use a custom formatter so the
+    // axis always shows 09:30…16:00 ET regardless of the browser's local
+    // timezone (and correctly across the EST/EDT DST boundary).
     const hourlyLocalization = timeframe === 'hourly' ? {
       localization: {
         timeFormatter: ts => {
-          const ist = new Date((ts + 19800) * 1000);
-          const dd  = String(ist.getUTCDate()).padStart(2, '0');
-          const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][ist.getUTCMonth()];
-          const hh  = String(ist.getUTCHours()).padStart(2, '0');
-          const mm  = String(ist.getUTCMinutes()).padStart(2, '0');
+          const {dd, mon, hh, mm} = _etDateTimeParts(ts);
           return `${dd} ${mon} ${hh}:${mm}`;
         },
       },
@@ -8613,14 +8459,14 @@ function jrnlExportCSV(){
         for (let i = 1; i < wc.length; i++) {
           prevWkMap.set(wc[i].time, isBullDir ? wc[i - 1].high : wc[i - 1].low);
         }
-        // For each hourly bar find its week's Monday (IST), look up prev week value
+        // For each hourly bar find its week's Monday (ET calendar date), look up prev week value
         const wkLine = [];
         for (const hc of data.candles) {
-          const ist = new Date((hc.time + 19800) * 1000);
-          const dow = ist.getUTCDay();
+          const dUTC = new Date(_etDateStr(hc.time) + 'T00:00:00Z');
+          const dow = dUTC.getUTCDay();
           const daysToMon = dow === 0 ? -6 : 1 - dow;
-          const mon = new Date(ist);
-          mon.setUTCDate(ist.getUTCDate() + daysToMon);
+          const mon = new Date(dUTC);
+          mon.setUTCDate(dUTC.getUTCDate() + daysToMon);
           const monStr = mon.toISOString().slice(0, 10);
           const val = prevWkMap.get(monStr);
           if (val != null) wkLine.push({ time: hc.time, value: val });
@@ -8730,9 +8576,9 @@ function jrnlExportCSV(){
   function _buildCandleMap(candles, timeframe) {
     const m = new Map();
     if (timeframe === 'hourly') {
-      // Map each calendar date (IST) to the first bar of that day
+      // Map each calendar date (ET) to the first bar of that day
       candles.forEach(c => {
-        const d = new Date((c.time + 19800) * 1000).toISOString().slice(0,10);
+        const d = _etDateStr(c.time);
         if (!m.has(d)) m.set(d, c);
       });
     } else {
@@ -8911,7 +8757,7 @@ function jrnlExportCSV(){
   let _syncActive = false;
 
   function _barToDate(t, timeframe) {
-    if (timeframe === 'hourly') return new Date(t * 1000 + 19800000).toISOString().slice(0,10);
+    if (timeframe === 'hourly') return _etDateStr(t);
     return typeof t === 'string' ? t : new Date(t * 1000).toISOString().slice(0,10);
   }
 
@@ -9197,7 +9043,7 @@ function jrnlExportCSV(){
 
     // ── Stock scores at cursor date — always — for indices (not applicable) ──
     const _setMini2 = (id, v) => { const e=document.getElementById(id); if(e) e.innerHTML=_ibdMiniChip(v); };
-    if (sym.endsWith('-INDEX')) {
+    if (_isIndexSymbol(sym)) {
       _setMini2('ibdCursorStockLT', null); _setMini2('ibdCursorStockMid', null); _setMini2('ibdCursorStockST', null);
     } else {
       const lt  = _stockHistScore('rs252_rank', sym, scoreDate);
@@ -9228,7 +9074,7 @@ function jrnlExportCSV(){
   // ── Header population ─────────────────────────────────────────────────────
   function _populateHeader(sym, row, signals) {
     // Stock RS Rank row — null for index symbols (not applicable → shows —)
-    const _isIdx = String(sym).endsWith('-INDEX');
+    const _isIdx = _isIndexSymbol(sym);
     const lt  = _isIdx ? null : (row?.rs252_rank ?? null);
     const mid = _isIdx ? null : (row?.rs55_rank  ?? null);
     const st  = _isIdx ? null : (row?.rs21_rank  ?? null);
@@ -9261,11 +9107,7 @@ function jrnlExportCSV(){
     const swData   = (typeof _swingData !== 'undefined' && _swingData?.indices) ? _swingData.indices : [];
     const idxCat   = {};
     swData.forEach(x => { idxCat[x.name] = x.category; });
-    const BROAD    = new Set(['BROAD MARKET','DERIVATIVES']);
-    // NIFTY BANK and NIFTY FINANCIAL SERVICES live in DERIVATIVES category but
-    // belong in the SECTOR panel (via _SWING_EXTRA), not the broad market panel.
-    // Exclude them here — exactly matching _SWING_EXCLUDE / _IBD_EXCLUDE in Sector Lens.
-    const BROAD_EXCL = new Set(['NIFTY BANK','NIFTY FINANCIAL SERVICES']);
+    const BROAD    = new Set(['BROAD MARKET']);
 
     const getBlock = nm => ({
       name: nm, yearly: yearly[nm]??null,
@@ -9275,9 +9117,9 @@ function jrnlExportCSV(){
     const byYearly  = (a,b) => (b.yearly??-1)-(a.yearly??-1);
 
     let broadBlocks = [...new Set(row?.index_list||[])]
-      .filter(nm => BROAD.has(idxCat[nm]) && !BROAD_EXCL.has(nm))
+      .filter(nm => BROAD.has(idxCat[nm]))
       .map(getBlock).filter(hasScore).sort(byYearly).slice(0,3);
-    if (!broadBlocks.length) { const n5=getBlock('NIFTY 500'); if(hasScore(n5)) broadBlocks=[n5]; }
+    if (!broadBlocks.length) { const sp5=getBlock('S&P 500'); if(hasScore(sp5)) broadBlocks=[sp5]; }
 
     // Build confidence map from hawks_mappings for display
     const confMap = {};
@@ -9390,7 +9232,7 @@ function jrnlExportCSV(){
       rs252_rank:     null,
       rs55_rank:      null,
       rs21_rank:      null,
-      index_list:     onBroadTab ? [name] : ['NIFTY 500'],
+      index_list:     onBroadTab ? [name] : ['S&P 500'],
       hawks_mappings: onBroadTab ? []     : [{ name, confidence: 'high', source: 'official' }],
     };
     _dhSetPinnedRow(tr);
@@ -9439,9 +9281,9 @@ function jrnlExportCSV(){
   window.ibdChartOpen = async function(sym, row, signals, targetDate) {
     if (_loading) return;
 
-    // Keep full "NSE:XXXX-INDEX" for index symbols; strip prefix/suffix only for stocks.
+    // Index/ETF tickers pass through unchanged; stock tickers are already plain too.
     sym = String(sym);
-    if (!sym.endsWith('-INDEX')) sym = sym.replace(/^\^?NSE:/, '').replace(/-EQ$/, '');
+    if (!_isIndexSymbol(sym)) sym = sym.replace(/^\^?NSE:/, '').replace(/-EQ$/, '');
     if (!row && window._ibdRowData) row = window._ibdRowData[sym] || row;
 
     // If same sym already open and a target date is given, just sync to that date
@@ -9571,7 +9413,7 @@ function jrnlExportCSV(){
     _dhSetPinnedRow(next);
     next.scrollIntoView({ block: 'nearest' });
     const rawSym = next.dataset.hrSym;
-    const isIndex = rawSym.endsWith('-INDEX');
+    const isIndex = _isIndexSymbol(rawSym);
     const ticker  = isIndex ? rawSym : rawSym.replace(/^NSE:/, '').replace(/-EQ$/, '');
     const rowData = window._ibdRowData && window._ibdRowData[ticker];
     let openRow = rowData, sigs = {};
@@ -9585,7 +9427,7 @@ function jrnlExportCSV(){
         rs252_rank:     null,
         rs55_rank:      null,
         rs21_rank:      null,
-        index_list:     onBroadTab ? [idxName] : ['NIFTY 500'],
+        index_list:     onBroadTab ? [idxName] : ['S&P 500'],
         hawks_mappings: onBroadTab ? []        : [{ name: idxName, confidence: 'high', source: 'official' }],
       };
     } else if (rowData) {

@@ -46,6 +46,10 @@ def build_sector_index_map_rows(tickers: list[dict]) -> list[tuple]:
       (symbol, index_name, index_symbol, source, confidence)
     One row per ticker — its GICS sector's ETF. Unmapped/uncategorized
     sectors are skipped (no row), same as the old low-confidence skip.
+
+    source/confidence are set to "official"/"high" — the strongest tier the
+    UI recognizes (sort order, confidence-tier checkboxes) — since this is an
+    exact 1:1 categorical join, not a fuzzy multi-index match like NSE's.
     """
     rows = []
     for t in tickers:
@@ -53,5 +57,5 @@ def build_sector_index_map_rows(tickers: list[dict]) -> list[tuple]:
         etf = SECTOR_ETF.get(sector)
         if not etf:
             continue
-        rows.append((t["symbol"], sector, etf, "gics_sector", "exact"))
+        rows.append((t["symbol"], sector, etf, "official", "high"))
     return rows

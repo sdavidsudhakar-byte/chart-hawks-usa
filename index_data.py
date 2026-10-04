@@ -32,7 +32,7 @@ class IndexInfo(NamedTuple):
 
 ALL_INDICES: list[IndexInfo] = (
     [IndexInfo(sym, name, "BROAD MARKET") for name, sym in sector_etf_map.BROAD_MARKET_ETFS.items()]
-    + [IndexInfo(sym, f"{sector} (Sector SPDR)", "SECTORAL") for sector, sym in sector_etf_map.SECTOR_ETF.items()]
+    + [IndexInfo(sym, sector, "SECTORAL") for sector, sym in sector_etf_map.SECTOR_ETF.items()]
 )
 
 SYMBOLS: list[str] = [idx.symbol for idx in ALL_INDICES]
