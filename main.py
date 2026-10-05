@@ -2215,8 +2215,16 @@ def api_multi_chart(symbol: str = ""):
         con.row_factory = _sq.Row
 
         # ── Daily OHLCV ───────────────────────────────────────────────────
+        # Excludes rows with any NULL OHLC value — isolated single-day gaps
+        # yfinance occasionally leaves on thin/illiquid tickers (penny stocks
+        # etc.). _pack_tf below has no NULL guard (float(None) crashes), so
+        # without this filter one bad day took down the WHOLE chart with an
+        # HTTP 500 instead of just skipping that one candle.
         daily_rows = con.execute(
-            "SELECT date, open, high, low, close, volume FROM ohlcv_daily WHERE symbol=? ORDER BY date ASC",
+            """SELECT date, open, high, low, close, volume FROM ohlcv_daily
+               WHERE symbol=? AND open IS NOT NULL AND high IS NOT NULL
+                     AND low IS NOT NULL AND close IS NOT NULL
+               ORDER BY date ASC""",
             (sym,),
         ).fetchall()
 
@@ -2270,6 +2278,13 @@ def api_multi_chart(symbol: str = ""):
         t = []; o = []; h = []; l = []; c = []; v = []
         e20 = []; e50 = []; s200 = []; rs = []
         for r in ohlcv_rows:
+            # Skip rows with any NULL OHLC value — isolated single-day gaps
+            # yfinance occasionally leaves on thin tickers. The daily SQL
+            # query above already filters these out at the source, but this
+            # guard protects weekly/monthly (and any future caller) too,
+            # since float(None) would otherwise crash the whole response.
+            if r["open"] is None or r["high"] is None or r["low"] is None or r["close"] is None:
+                continue
             k  = str(r[date_col])[:10] if date_col != "ts" else r[date_col]
             rv = round; fv = float
             t.append(k)
