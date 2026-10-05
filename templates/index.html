@@ -1474,14 +1474,28 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
     <!-- Pipe + 52W Zone toggle -->
     <div style="width:1px;height:16px;background:var(--border);margin:0 10px;flex-shrink:0;"></div>
     <button class="hf-preset" id="shf52wZoneBtn" onclick="_shf52wZoneToggle()" title="Minervini 52W Zone: price ≥30% above 52W low · price ≤25% below 52W high">52W Zone</button>
-    <!-- Pipe + D-Cross recency filter -->
+    <!-- Pipe + Signals recency (ALWAYS applied — every row must have at least
+         one qualifying signal within this window) + D-Cross-only recency
+         (OFF by default — an extra, narrower filter that stacks on top of
+         the one before it). Kept visually adjacent and distinctly labeled
+         since they're easy to mistake for duplicates of each other. -->
     <div style="width:1px;height:16px;background:var(--border);margin:0 10px;flex-shrink:0;"></div>
-    <label style="font-size:.72rem;font-weight:600;color:var(--text2);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;" title="Show only stocks whose daily EMA cross (D-Cross) happened within the last N trading days. Leave blank to disable.">
-      D-Cross
-      <input type="text" id="shfDCrossInput" inputmode="numeric" pattern="[0-9]*" placeholder="last N days"
-             style="width:78px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:.76rem;outline:none;text-align:center;"
+    <label style="font-size:.72rem;font-weight:600;color:var(--text2);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;" title="ALWAYS applied. Keeps only stocks with at least one signal (Ignition, D-Cross, or pullback) within the last N trading days. This is why the result count can be lower than the total scanned even with no other filters selected.">
+      Signals ≤
+      <input type="text" id="scanDaysInput" inputmode="numeric" pattern="[0-9]*" value="30"
+             style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:.76rem;outline:none;text-align:center;"
+             oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+             onchange="var v=Math.min(90,Math.max(1,parseInt(this.value)||1));this.value=v;_fetchScanCutoff(v);_saveScanDays(v);"/>
+      days
+    </label>
+    <div style="width:1px;height:16px;background:var(--border);margin:0 10px;flex-shrink:0;"></div>
+    <label style="font-size:.72rem;font-weight:600;color:var(--text2);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;" title="OFF by default. An EXTRA, narrower filter on top of 'Signals ≤' above — keeps only stocks whose D-Cross specifically (not Ignition or pullback) happened within the last N trading days. Leave blank to disable.">
+      D-Cross only ≤
+      <input type="text" id="shfDCrossInput" inputmode="numeric" pattern="[0-9]*" placeholder="off"
+             style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:.76rem;outline:none;text-align:center;"
              oninput="this.value=this.value.replace(/[^0-9]/g,'');"
              onchange="_shfSetDCrossDays(this.value)"/>
+      days
     </label>
     <div class="hf-save-wrap" id="shfSaveWrap" style="margin-left:4px;">
       <button class="hf-save-btn" id="shfSaveBtn" onclick="_shfOpenSavePop()">
@@ -1957,13 +1971,11 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
       <!-- Daily Hunt group -->
       <div style="margin-top:16px;">
         <div style="font-size:.72rem;font-weight:700;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">Daily Hunt</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <label style="font-size:.78rem;color:var(--text2);white-space:nowrap;">Show signals from last</label>
-          <input type="text" id="scanDaysInput" inputmode="numeric" pattern="[0-9]*" value="30"
-                 style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:.8rem;outline:none;text-align:center;"
-                 oninput="this.value=this.value.replace(/[^0-9]/g,'');"
-                 onchange="var v=Math.min(90,Math.max(1,parseInt(this.value)||1));this.value=v;_fetchScanCutoff(v);_saveScanDays(v);"/>
-          <span style="font-size:.78rem;color:var(--text2);">days</span>
+        <div style="font-size:.76rem;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+          The "Signals ≤ N days" recency filter now lives directly on the
+          Stocks Hunt toolbar (next to "D-Cross") instead of here — it was
+          easy to forget it was restricting results when it could only be
+          seen or changed from this separate Settings page.
         </div>
         <!-- hidden inputs kept for API compat — atr_mult/c_atr_mult still sent on manual scan -->
         <input type="hidden" id="atrMultInput" value="0.5"/>
