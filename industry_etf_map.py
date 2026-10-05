@@ -63,7 +63,6 @@ INDUSTRY_ETF: dict[str, str] = {
     "Metals & Mining":            "XME",
     "Gold Miners":                "GDX",   # vs GDXJ (juniors — different tier)
     "Leisure & Restaurants":      "PEJ",
-    "Auto":                       "CARZ",
     "Telecom":                    "IYZ",   # vs XTL ($1.2B vs $0.6B)
     "Mortgage REITs":             "REM",
     "Transportation":             "IYT",   # vs XTN ($2.2B vs $0.4B)
@@ -185,7 +184,21 @@ INDUSTRY_NAME_MAP: dict[str, str] = {
     "Resorts & Casinos": "Leisure & Restaurants",
     "Gambling": "Leisure & Restaurants",
     "Casinos & Gaming": "Leisure & Restaurants",
-    # Auto
+    # Auto — deliberately has NO entry in INDUSTRY_ETF above anymore (used to
+    # be CARZ). Checked CARZ's actual live holdings on yfinance: it's "First
+    # Trust S-Network Future Vehicles & TECHNOLOGY ETF", 61% Microsoft/NVIDIA/
+    # Samsung/Apple/Micron/TSM/Google/Tesla/AMD/Intel — a semiconductor/big-
+    # tech fund, not traditional automakers. It was tracking the 2026 chip
+    # rally while the ~130 real stocks mapped below (Ford, GM, AutoZone,
+    # Toyota, AutoNation, ...) were down double digits — the index score and
+    # the underlying stocks were measuring two unrelated things. The obvious
+    # alternatives (DRIV, IDRV) have the identical problem — every "future
+    # vehicles/autonomous/EV" themed ETF on the market is now tech- and
+    # battery-supply-chain-dominated, not a traditional-auto pure play. No
+    # honest liquid substitute exists, so these stocks fall through to the
+    # generic "Unclassified" tag (see build_industry_index_map_rows) instead
+    # of a real ETF — still tagged here so they stay grouped/findable, just
+    # with no backing index to rank them against.
     "Auto Parts": "Auto",
     "Auto Manufacturers": "Auto",
     "Auto & Truck Dealerships": "Auto",
