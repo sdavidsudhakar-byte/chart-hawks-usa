@@ -1026,7 +1026,21 @@ async def api_scan_signals(request: Request):
     symbols          = set(body.get("symbols") or []) or None
 
     try:
-        rows = db.get_scan_signals(direction)
+        # Reads from scanner_results — the table scanner.run_full_scan()
+        # actually populates. This used to read db.get_scan_signals(), which
+        # queries the scan_signals table: that table was exclusively written
+        # by hourly_scanner.py's "hourly cycle enrichment" pass (see its
+        # upsert_scan_signals() callers — there are none left), so since
+        # hourly_scanner.py was removed, scan_signals has been a frozen
+        # snapshot that nothing refreshes. Only the two signal types actually
+        # in use (M-High/Low breakout + Daily Cross) matter here — pullback
+        # (S-PB/C-PB) is old, unused code and deliberately not revived.
+        rows = db.get_scanner_results(
+            direction, list(macros), list(sectors), list(industries), list(basic_industries),
+            indices=list(indices) if indices else None,
+            hawks=list(hawks) if hawks else None,
+            symbols=list(symbols) if symbols else None,
+        )
         if not rows:
             return {"results": [], "direction": direction, "as_of": None}
 
@@ -1039,12 +1053,10 @@ async def api_scan_signals(request: Request):
                 "direction": r["direction"],
                 "m_date": r.get("m_date"),
                 "m_price": r.get("m_price"),
-                "bull_cross_date": r.get("daily_cross_date"),
-                "s_pullback_date": None,
-                "c_pullback_date": None,
+                "bull_cross_date": r.get("bull_cross_date"),
                 "above_200sma": r.get("above_200sma", 0),
-                "_phase_end_date": r.get("phase_end_date"),
-                "_daily_cross_date": r.get("daily_cross_date"),
+                "_phase_end_date": None,
+                "_daily_cross_date": r.get("bull_cross_date"),
             })
 
         scanner_module._enrich_with_ticker_meta(enrich_rows)

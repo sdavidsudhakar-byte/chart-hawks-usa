@@ -1474,6 +1474,7 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
     <!-- Pipe + 52W Zone toggle -->
     <div style="width:1px;height:16px;background:var(--border);margin:0 10px;flex-shrink:0;"></div>
     <button class="hf-preset" id="shf52wZoneBtn" onclick="_shf52wZoneToggle()" title="Minervini 52W Zone: price ≥30% above 52W low · price ≤25% below 52W high">52W Zone</button>
+    <button class="hf-preset" id="scanAbove200Btn" onclick="_scanAbove200Toggle()" title="OFF by default. When ON, only shows stocks whose EMA cross occurred above the 200 SMA. Moved here from Settings.">Cross &gt; 200 SMA</button>
     <!-- Pipe + Signals recency (ALWAYS applied — every row must have at least
          one qualifying signal within this window) + D-Cross-only recency
          (OFF by default — an extra, narrower filter that stacks on top of
@@ -1980,12 +1981,9 @@ body.sw-pinned tr[data-ov-pinned]{background:rgba(100,116,139,0.08) !important;b
         <!-- hidden inputs kept for API compat — atr_mult/c_atr_mult still sent on manual scan -->
         <input type="hidden" id="atrMultInput" value="0.5"/>
         <input type="hidden" id="cAtrMultInput" value="0.5"/>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <label class="toggle-wrap" title="When ON, only shows stocks where the EMA cross occurred above the 200 SMA.">
-            <input type="checkbox" id="above200SmaToggle" onchange="rerenderScanResults()"/>
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          </label>
-          <span style="font-size:.78rem;color:var(--text2);">Cross above 200 SMA only</span>
+        <div style="font-size:.76rem;color:var(--text3);line-height:1.5;">
+          "Cross above 200 SMA only" also moved to the Stocks Hunt toolbar
+          (next to "52W Zone"), for the same reason as above.
         </div>
       </div>
 
@@ -5407,6 +5405,11 @@ document.addEventListener('click', e => {
 // ── Stocks Hunt Score Filter (_shf*) ─────────────────────────────────────────
 const _shfState = { lt: new Set(), mid: new Set(), st: new Set() };
 let _shf52wZoneActive = false;
+// "Cross above 200 SMA only". Default false — the old checkbox had no
+// `checked` HTML attribute, so .checked read false by default in practice
+// (despite the old getter's `!==false` fallback suggesting true was intended
+// for a *missing* element — moot once the element exists, which it always did).
+let _scanAbove200 = false;
 let _shfEstOR   = false; // Established preset = (LT>=80 OR Mid>=80); custom OR logic, locks the filter dropdowns
 let _shfEmergOR = false; // Emerging preset = (LT in 60-79 OR Mid in 60-79); combinable with Established (union = 60-100)
 let _shfIgnOR   = false; // Ignition preset = (ST>=80); combinable OR toggle
@@ -6439,7 +6442,13 @@ function _getScanDays(){
 }
 
 function _getAbove200(){
-  return document.getElementById('above200SmaToggle')?.checked!==false;
+  return _scanAbove200;
+}
+function _scanAbove200Toggle(){
+  _scanAbove200 = !_scanAbove200;
+  const btn = document.getElementById('scanAbove200Btn');
+  if (btn) btn.classList.toggle('hf-preset-active', _scanAbove200);
+  rerenderScanResults();
 }
 const _scanCutoffCache = {};  // days -> cutoff date string
 
@@ -6454,8 +6463,10 @@ function _applyDaysFilter(rows){
       const v=r.avg_dollar_vol||0;
       if(v<_scanMinDollarVol||v>_scanMaxDollarVol)return false;
     }
+    // Only the two signal types actually in use — M-High/Low breakout and
+    // Daily Cross. Pullback (S-PB/C-PB) is old, unused code.
     const inW=d=>{if(!d)return false;return d.slice(0,10)>=cutoffStr;};
-    return inW(r.m_date)||inW(r.daily_cross_date||r.bull_cross_date)||inW(r.s_pullback_date)||inW(r.c_pullback_date);
+    return inW(r.m_date)||inW(r.daily_cross_date||r.bull_cross_date);
   });
 }
 
@@ -6688,6 +6699,8 @@ function scanClearAllFilters(){
   // Established OR-filter (and its lock) persists after Clear all.
   _shf52wZoneActive=false;
   document.getElementById('shf52wZoneBtn')?.classList.remove('hf-preset-active');
+  _scanAbove200=false;
+  document.getElementById('scanAbove200Btn')?.classList.remove('hf-preset-active');
   _shfClearAll();
   _updateScanClearBtn();
   rerenderScanResults();
