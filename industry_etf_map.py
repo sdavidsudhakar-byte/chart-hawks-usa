@@ -399,23 +399,39 @@ INDUSTRY_NAME_MAP: dict[str, str] = {
 }
 
 
+UNCLASSIFIED = "Unclassified"
+
+
 def build_industry_index_map_rows(tickers: list[dict]) -> list[tuple]:
     """
-    tickers: [{symbol, industry, ...}] from the tickers table.
-    Returns extra rows for db.upsert_sector_index_map, one per ticker whose
-    industry has a known ETF mapping — ADDED alongside (not replacing) each
-    ticker's sector-level row, so a stock carries both its sector ETF and its
-    industry ETF in hawks_mappings. Unmapped industries (long tail + Shell
-    Companies) are skipped — same graceful degradation as sector_etf_map.
+    tickers: [{symbol, sector, industry}] from the tickers table.
+    Returns extra rows for db.upsert_sector_index_map, one per ticker — ADDED
+    alongside (not replacing) each ticker's sector-level row, so a stock
+    carries both its sector ETF and its industry-tier tag in hawks_mappings.
+
+    Real operating companies whose GICS industry has no liquid ETF behind it
+    (Chemicals, Education, Utilities sub-types, delisted-ETF Coal, etc. — see
+    the "deliberately NOT mapped" notes above) still get a row here, tagged
+    "Unclassified" with no backing ETF — this keeps them selectable in the
+    Stocks Lens / Stocks Hunt Hawks Index filters instead of silently
+    disappearing from that filter entirely. "Unclassified" is NOT one of
+    index_data.ALL_INDICES, so it never appears as a ranked row in Sector
+    Lens (there's no real ETF/price data to rank it on) — it's a filter-only
+    tag, same mechanism, different purpose.
+
+    Stocks with no sector at all (Shell Companies, SPAC warrants/units/
+    rights, preferred notes/debentures — not real operating companies) are
+    still skipped entirely, same as before: there's nothing to classify.
     """
     rows = []
     for t in tickers:
+        if t.get("sector") == "Uncategorized":
+            continue
         industry = t.get("industry")
         display_name = INDUSTRY_NAME_MAP.get(industry)
-        if not display_name:
-            continue
-        etf = INDUSTRY_ETF.get(display_name)
-        if not etf:
-            continue
-        rows.append((t["symbol"], display_name, etf, "official", "high"))
+        etf = INDUSTRY_ETF.get(display_name) if display_name else None
+        if display_name and etf:
+            rows.append((t["symbol"], display_name, etf, "official", "high"))
+        else:
+            rows.append((t["symbol"], UNCLASSIFIED, "", "unmapped", "low"))
     return rows
