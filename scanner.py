@@ -1,24 +1,18 @@
 """
 scanner.py — Daily Hunt Scanner
 
-Scans all symbols for a 3-milestone bull/bear sequence on daily bars:
+Scans all symbols for a 2-step bull/bear EMA cross sequence on daily bars:
 
 Bull sequence:
   Step 1: 20 EMA crosses BELOW 50 EMA  (bear phase begins)
-  Step 2: Monthly high > prev month high → M-High date (keep overwriting until Step 3)
-  Step 3: 20 EMA crosses ABOVE 50 EMA  (bull cross — freeze M-High, watch pullbacks)
-  Step 4: Price low ≤ 20 EMA + ATR_MULT×ATR  → S-Pullback date (first occurrence)
-  Step 5: Price low ≤ 50 EMA + ATR_MULT×ATR  → C-Pullback date (first occurrence)
+  Step 2: 20 EMA crosses ABOVE 50 EMA  (bull cross — the Daily Cross signal)
 
 Bear sequence (mirror):
   Step 1: 20 EMA crosses ABOVE 50 EMA  (bull phase begins)
-  Step 2: Monthly low < prev month low  → M-Low date (keep overwriting until Step 3)
-  Step 3: 20 EMA crosses BELOW 50 EMA  (bear cross)
-  Step 4: Price high ≥ 20 EMA - ATR_MULT×ATR → S-Pullback date
-  Step 5: Price high ≥ 50 EMA - ATR_MULT×ATR → C-Pullback date
+  Step 2: 20 EMA crosses BELOW 50 EMA  (bear cross)
 
-A stock appears in results only when at least one of its 3 milestone dates
-falls within the last SCAN_DAYS trading days.
+A stock appears in results only when its Daily Cross date falls within the
+last SCAN_DAYS trading days.
 
 All data is read from ohlcv_daily (daily OHLC) — no Fyers calls, no intraday data.
 """
@@ -38,9 +32,7 @@ logger = logging.getLogger(__name__)
 
 DAILY_WARMUP   = 300    # bars loaded per symbol for EMA warm-up (6× 50-period)
 BEAR_LOOKBACK  = 252    # how far back to search for Step 1 (~1 trading year)
-SCAN_DAYS      = 30     # milestone dates must fall within this many trading days
-ATR_PERIOD     = 14     # ATR period
-DEFAULT_ATR_MULT = 0.5  # default ATR multiplier for pullback proximity
+SCAN_DAYS      = 60     # Daily Cross date must fall within this many trading days
 
 
 # ── EMA / ATR helpers ─────────────────────────────────────────────────────────
@@ -55,37 +47,6 @@ def _compute_ema(closes: list[float], period: int) -> list[Optional[float]]:
     result[period - 1] = seed
     for i in range(period, n):
         result[i] = closes[i] * k + result[i - 1] * (1 - k)
-    return result
-
-
-def _compute_atr(highs: list[float], lows: list[float], closes: list[float],
-                 period: int = ATR_PERIOD) -> list[Optional[float]]:
-    """Standard ATR using Wilder's smoothing (EMA with period as divisor)."""
-    n = len(closes)
-    result: list[Optional[float]] = [None] * n
-    if n < period + 1:
-        return result
-
-    # True ranges
-    trs: list[float] = []
-    for i in range(1, n):
-        tr = max(
-            highs[i] - lows[i],
-            abs(highs[i] - closes[i - 1]),
-            abs(lows[i] - closes[i - 1]),
-        )
-        trs.append(tr)
-    # trs[i] corresponds to bar i+1
-
-    # Seed with simple average of first `period` true ranges
-    if len(trs) < period:
-        return result
-    atr_val = sum(trs[:period]) / period
-    result[period] = atr_val  # first valid ATR is at bar index `period`
-    k = 1.0 / period           # Wilder's multiplier = 1/period
-    for i in range(period + 1, n):
-        atr_val = trs[i - 1] * k + atr_val * (1 - k)
-        result[i] = atr_val
     return result
 
 
@@ -163,36 +124,12 @@ def _get_all_symbols() -> list[str]:
         db.release_conn(conn)
 
 
-# ── Monthly OHLC helper ───────────────────────────────────────────────────────
-
-def _build_monthly_ohlc(dates: list[str], highs: list[float],
-                         lows: list[float]) -> list[tuple]:
-    """
-    Group daily bars into calendar months.
-    Returns [(year, month, month_high, month_low), ...] in chronological order.
-    Only includes fully computable months (includes in-progress current month).
-    """
-    monthly: dict[tuple, list] = {}
-    for i, d in enumerate(dates):
-        ym = (int(d[:4]), int(d[5:7]))
-        if ym not in monthly:
-            monthly[ym] = {"high": highs[i], "low": lows[i]}
-        else:
-            if highs[i] > monthly[ym]["high"]:
-                monthly[ym]["high"] = highs[i]
-            if lows[i] < monthly[ym]["low"]:
-                monthly[ym]["low"] = lows[i]
-    return [(ym[0], ym[1], v["high"], v["low"]) for ym, v in sorted(monthly.items())]
-
-
 # ── Per-symbol scan logic ─────────────────────────────────────────────────────
 
-def _scan_symbol(dates: list[str], opens: list[float], highs: list[float],
-                 lows: list[float], closes: list[float],
-                 oldest_scan_date: str, atr_mult: float,
-                 c_atr_mult: float) -> list[dict]:
+def _scan_symbol(dates: list[str], closes: list[float],
+                 oldest_scan_date: str) -> list[dict]:
     """
-    Run the full bull+bear milestone scan for one symbol.
+    Run the full bull+bear cross scan for one symbol.
     Returns a list of 0, 1, or 2 result dicts (one per direction that qualifies).
     """
     n = len(closes)
@@ -201,29 +138,21 @@ def _scan_symbol(dates: list[str], opens: list[float], highs: list[float],
 
     ema20 = _compute_ema(closes, 20)
     ema50 = _compute_ema(closes, 50)
-    atr   = _compute_atr(highs, lows, closes, ATR_PERIOD)
-    monthly = _build_monthly_ohlc(dates, highs, lows)
 
     results = []
     for direction in ("bull", "bear"):
-        row = _scan_direction(
-            direction, dates, highs, lows, closes,
-            ema20, ema50, atr, monthly,
-            oldest_scan_date, atr_mult, c_atr_mult,
-        )
+        row = _scan_direction(direction, dates, ema20, ema50, closes, oldest_scan_date)
         if row:
             results.append(row)
     return results
 
 
-def _scan_direction(direction: str, dates, highs, lows, closes,
-                    ema20, ema50, atr, monthly,
-                    oldest_scan_date: str, atr_mult: float,
-                    c_atr_mult: float = None) -> Optional[dict]:
+def _scan_direction(direction: str, dates, ema20, ema50, closes,
+                    oldest_scan_date: str) -> Optional[dict]:
     """
-    Bull: look for 20 crosses below 50 (Step 1), monthly high break (Step 2),
-          20 crosses above 50 (Step 3), pullbacks to 20/50 EMA (Steps 4-5).
-    Bear: mirror (cross above → monthly low break → cross below → pullbacks).
+    Bull: look for 20 crosses below 50 (Step 1), then 20 crosses above 50
+          after that (Step 2 — the Daily Cross signal).
+    Bear: mirror (cross above → cross below).
     """
     n = len(dates)
 
@@ -272,109 +201,16 @@ def _scan_direction(direction: str, dates, highs, lows, closes,
 
     cross_date = dates[cross_idx] if cross_idx is not None else None
 
-    # ── Step 2: M-High / M-Low between step1 and cross (overwrite each month) ─
-    # Include the cross month but cap daily bars at the cross date itself.
-    # If no breach found pre-cross, scan post-cross months for the FIRST breach
-    # and freeze there (one-time catch, no further overwriting).
-    m_date: Optional[str] = None
-    m_price: Optional[float] = None   # prev-month H/L threshold that was broken (for chart overlay)
-    if len(monthly) >= 2:
-        step1_ym = (int(step1_date[:4]), int(step1_date[5:7]))
-        cross_ym  = (int(cross_date[:4]), int(cross_date[5:7])) if cross_date else None
-
-        # Pass 1: pre-cross window (step1 month → cross month inclusive, capped at cross date)
-        for mi in range(1, len(monthly)):
-            yr, mo, mh, ml = monthly[mi]
-            cur_ym = (yr, mo)
-            if cur_ym < step1_ym:
-                continue
-            if cross_ym and cur_ym > cross_ym:
-                break
-            prev_mh = monthly[mi - 1][2]
-            prev_ml = monthly[mi - 1][3]
-            cap_date   = cross_date if (cross_ym and cur_ym == cross_ym) else None
-            floor_date = step1_date if cur_ym == step1_ym else None
-            if direction == "bull" and mh > prev_mh:
-                d = _first_date_in_month(dates, highs, yr, mo, prev_mh, "high", cap_date=cap_date, floor_date=floor_date)
-                if d:
-                    m_date = d; m_price = prev_mh
-            elif direction == "bear" and ml < prev_ml:
-                d = _first_date_in_month(dates, lows, yr, mo, prev_ml, "low", cap_date=cap_date, floor_date=floor_date)
-                if d:
-                    m_date = d; m_price = prev_ml
-
-        # Pass 2: if still no m_date, scan post-cross for the first breach and stop.
-        # Include the cross month itself (bars after cross_date) before moving to next months.
-        if m_date is None and cross_ym:
-            for mi in range(1, len(monthly)):
-                yr, mo, mh, ml = monthly[mi]
-                cur_ym = (yr, mo)
-                if cur_ym < cross_ym:
-                    continue
-                prev_mh = monthly[mi - 1][2]
-                prev_ml = monthly[mi - 1][3]
-                # For the cross month: only look at bars strictly after cross_date
-                start_after = cross_date if cur_ym == cross_ym else None
-                if direction == "bull" and mh > prev_mh:
-                    m_date = _first_date_in_month_after(dates, highs, yr, mo, prev_mh, "high", start_after)
-                    if m_date:
-                        m_price = prev_mh; break
-                elif direction == "bear" and ml < prev_ml:
-                    m_date = _first_date_in_month_after(dates, lows, yr, mo, prev_ml, "low", start_after)
-                    if m_date:
-                        m_price = prev_ml; break
-
-    # ── Validate: at least one milestone must be recent enough ────────────────
-    # S-Pullback and C-Pullback only exist after the cross
-    s_pullback_date: Optional[str] = None
-    c_pullback_date: Optional[str] = None
-    _c_atr_mult = c_atr_mult if c_atr_mult is not None else atr_mult
-    _c_gate_triggered = False  # True once price breaches below/above 20 EMA
-
-    if cross_idx is not None:
-        for i in range(cross_idx + 1, n):
-            e20 = ema20[i]
-            e50 = ema50[i]
-            at  = atr[i]
-            if e20 is None or e50 is None or at is None:
-                continue
-            s_band = atr_mult * at
-            c_band = _c_atr_mult * at
-            if direction == "bull":
-                # S-Pullback: low touches within ATR band above 20 EMA
-                if s_pullback_date is None and lows[i] <= e20 + s_band:
-                    s_pullback_date = dates[i]
-                # C-Pullback gate: price breaches below 20 EMA
-                if not _c_gate_triggered and lows[i] < e20:
-                    _c_gate_triggered = True
-                # C-Pullback target: once gate triggered, low within ATR band above 50 EMA
-                if c_pullback_date is None and _c_gate_triggered and lows[i] <= e50 + c_band:
-                    c_pullback_date = dates[i]
-            else:
-                # S-Pullback: high touches within ATR band below 20 EMA
-                if s_pullback_date is None and highs[i] >= e20 - s_band:
-                    s_pullback_date = dates[i]
-                # C-Pullback gate: price breaches above 20 EMA
-                if not _c_gate_triggered and highs[i] > e20:
-                    _c_gate_triggered = True
-                # C-Pullback target: once gate triggered, high within ATR band below 50 EMA
-                if c_pullback_date is None and _c_gate_triggered and highs[i] >= e50 - c_band:
-                    c_pullback_date = dates[i]
-            # Stop once both pullbacks found
-            if s_pullback_date and c_pullback_date:
-                break
-
-    # Skip if only cross exists — need at least one displayable signal
-    if not m_date and not s_pullback_date and not c_pullback_date:
+    # Skip if no cross happened yet
+    if cross_date is None:
         return None
 
-    # ── Check if any milestone falls within the scan window ───────────────────
-    milestone_dates = [d for d in (m_date, cross_date, s_pullback_date, c_pullback_date) if d]
-    if not any(d >= oldest_scan_date for d in milestone_dates):
+    # ── Check if the cross falls within the scan window ────────────────────
+    if cross_date < oldest_scan_date:
         return None
 
-    # Compute above_200sma flag at the cross date (or latest bar if no cross yet)
-    check_idx = cross_idx if cross_idx is not None else (n - 1)
+    # Compute above_200sma flag at the cross date
+    check_idx = cross_idx
     sma200_val = None
     if check_idx >= 199:
         sma200_val = sum(closes[check_idx - 199: check_idx + 1]) / 200
@@ -386,61 +222,9 @@ def _scan_direction(direction: str, dates, highs, lows, closes,
     return {
         "direction":       direction,
         "step1_date":      step1_date,
-        "m_date":          m_date,
-        "m_price":         m_price,
         "bull_cross_date": cross_date,
-        "s_pullback_date": s_pullback_date,
-        "c_pullback_date": c_pullback_date,
         "above_200sma":    above_200sma,
     }
-
-
-def _first_date_in_month(dates: list[str], values: list[float],
-                          yr: int, mo: int, threshold: float,
-                          direction: str,
-                          cap_date: Optional[str] = None,
-                          floor_date: Optional[str] = None) -> Optional[str]:
-    """
-    Find the first date in (yr, mo) where value strictly breaks the threshold.
-    direction='high': value > threshold; direction='low': value < threshold.
-    floor_date: skip bars before this date (for the step1 month).
-    cap_date: if set, ignore any bar after this date (used for the cross month).
-    Returns None if no bar actually breaches — no fallback.
-    """
-    month_str = f"{yr:04d}-{mo:02d}"
-    for i, d in enumerate(dates):
-        if not d.startswith(month_str):
-            continue
-        if floor_date and d < floor_date:
-            continue
-        if cap_date and d > cap_date:
-            break
-        if direction == "high" and values[i] > threshold:
-            return d
-        if direction == "low" and values[i] < threshold:
-            return d
-    return None
-
-
-def _first_date_in_month_after(dates: list[str], values: list[float],
-                                yr: int, mo: int, threshold: float,
-                                direction: str,
-                                start_after: Optional[str] = None) -> Optional[str]:
-    """
-    Like _first_date_in_month but skips bars up to and including start_after.
-    Used for post-cross M-High/Low search within the cross month.
-    """
-    month_str = f"{yr:04d}-{mo:02d}"
-    for i, d in enumerate(dates):
-        if not d.startswith(month_str):
-            continue
-        if start_after and d <= start_after:
-            continue
-        if direction == "high" and values[i] > threshold:
-            return d
-        if direction == "low" and values[i] < threshold:
-            return d
-    return None
 
 
 # ── Enrichment ────────────────────────────────────────────────────────────────
@@ -568,25 +352,17 @@ def _enrich_with_ticker_meta(results: list[dict]) -> list[dict]:
 
 # ── Main scan entry point ─────────────────────────────────────────────────────
 
-def run_full_scan(run_id: int | None = None, atr_mult: float | None = None, c_atr_mult: float | None = None) -> dict:
+def run_full_scan(run_id: int | None = None) -> dict:
     """
-    Scan ALL symbols for the 3-milestone bull/bear sequence on daily bars.
-    Fully DB-backed — no Fyers calls.
+    Scan ALL symbols for a Daily Cross (EMA20/50) within the last SCAN_DAYS
+    trading days. Fully DB-backed — no Fyers calls.
     Results written to scanner_results table.
     """
-    if atr_mult is None:
-        saved = db.get_app_state("atr_mult")
-        atr_mult = float(saved) if saved else DEFAULT_ATR_MULT
-    if c_atr_mult is None:
-        saved = db.get_app_state("c_atr_mult")
-        c_atr_mult = float(saved) if saved else DEFAULT_ATR_MULT
-    saved_days = db.get_app_state("scan_days")
-    scan_days = int(saved_days) if saved_days else SCAN_DAYS
-    logger.info("Daily Hunt scanner starting (atr_mult=%.2f)...", atr_mult)
+    logger.info("Daily Hunt scanner starting...")
     if run_id is None:
         run_id = db.scanner_run_start()
 
-    recent_dates = _get_latest_n_trading_dates(scan_days)
+    recent_dates = _get_latest_n_trading_dates(SCAN_DAYS)
     if not recent_dates:
         db.scanner_run_finish(run_id, 0, 0, 0, 0, "error")
         return {"ok": False, "error": "No price data in DB."}
@@ -598,10 +374,10 @@ def run_full_scan(run_id: int | None = None, atr_mult: float | None = None, c_at
     sym_list = symbols
     logger.info("Daily Hunt: %d symbols, window back to %s", len(symbols), oldest_scan_date)
 
-    # Bulk load OHLC (need high/low for monthly breakout + ATR + pullback proximity)
+    # Bulk load OHLC (only close is needed for EMA cross detection)
     total_bars = DAILY_WARMUP + BEAR_LOOKBACK
     all_ohlc = _bulk_load_daily_ohlc(sym_list, total_bars)
-    logger.info("Daily Hunt: loaded OHLC for %d symbols — computing milestones...", len(all_ohlc))
+    logger.info("Daily Hunt: loaded OHLC for %d symbols — computing crosses...", len(all_ohlc))
 
     # Load ticker metadata in one query
     conn = db.get_conn()
@@ -628,12 +404,9 @@ def run_full_scan(run_id: int | None = None, atr_mult: float | None = None, c_at
         if len(ohlc) < 60:
             continue
         dates  = [r[0] for r in ohlc]
-        opens  = [r[1] for r in ohlc]
-        highs  = [r[2] for r in ohlc]
-        lows   = [r[3] for r in ohlc]
         closes = [r[4] for r in ohlc]
         try:
-            rows = _scan_symbol(dates, opens, highs, lows, closes, oldest_scan_date, atr_mult, c_atr_mult)
+            rows = _scan_symbol(dates, closes, oldest_scan_date)
         except Exception as e:
             logger.warning("Scan error %s: %s", symbol, e)
             errors += 1
@@ -732,8 +505,7 @@ def get_cached_results(
 
     results = []
     for r in rows:
-        # Skip stale cross-only rows that have no displayable signals
-        if not r.get("m_date") and not r.get("s_pullback_date") and not r.get("c_pullback_date"):
+        if not r.get("bull_cross_date"):
             continue
         results.append({
             "symbol":          r["symbol"],
@@ -743,11 +515,7 @@ def get_cached_results(
             "industry":        r["industry"] or "",
             "basic_industry":  r["basic_industry"] or "",
             "direction":       r["direction"],
-            "m_date":          r.get("m_date"),
-            "m_price":         r.get("m_price"),
             "bull_cross_date": r.get("bull_cross_date"),
-            "s_pullback_date": r.get("s_pullback_date"),
-            "c_pullback_date": r.get("c_pullback_date"),
             "above_200sma":    bool(r.get("above_200sma", False)),
         })
 

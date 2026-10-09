@@ -39,6 +39,10 @@ Public API:
 # "Industry" tab and in hawks_mappings — must be stable (used for the
 # Stocks Lens Hawks Index filter join, same mechanism as sector_etf_map).
 INDUSTRY_ETF: dict[str, str] = {
+    "Cybersecurity": "CIBR",  # First Trust NASDAQ Cybersecurity ETF — see
+                              # CYBERSECURITY_SYMBOLS below for why this one
+                              # needs a symbol-level override, not an
+                              # industry-string entry in INDUSTRY_NAME_MAP.
     # ── Mapped to real stock clusters (industry_etf_map.INDUSTRY_NAME_MAP) ──
     # Ticker picks verified against real AUM/volume on yfinance — where two+
     # ETFs track essentially the same theme, the most liquid one wins.
@@ -81,6 +85,25 @@ INDUSTRY_ETF: dict[str, str] = {
                                             # uranium-miner tickers.industry
                                             # values, so the ETF now has genuine
                                             # stocks behind it (see below).
+    "Water Utilities":            "PHO",   # Invesco Water Resources, $1.9B AUM —
+                                            # vs FIW/CGW ($1.7B/$1.0B). Genuinely
+                                            # distinct business (AWK, WTRG, CWT,
+                                            # MSEX...) from XLU's power/gas
+                                            # utilities, unlike every other
+                                            # utilities sub-type checked below.
+    "Agribusiness & Fertilizers": "MOO",   # VanEck Agribusiness, $1.1B AUM.
+                                            # Covers fertilizer/crop-input
+                                            # majors (NTR, CF, MOS, FMC, CTVA) —
+                                            # broader "agribusiness" than a pure
+                                            # fertilizer play, but the closest
+                                            # real liquid option; confirmed live
+                                            # with real stock backing (12 names)
+                                            # after a 2025 pass had dropped it
+                                            # for lacking any at the time.
+    "Coal":                       "COAL",  # Range Global Coal ETF, $53.5M AUM —
+                                            # thin but real and resolves live;
+                                            # KOL (the prior pick) is delisted.
+                                            # Covers BTU, HCC, METC, AMR, ARLP.
 }
 # Every entry above has a confirmed non-empty stock mapping — see
 # INDUSTRY_NAME_MAP below. (Previously this dict also listed MOO/BOTZ/LIT/
@@ -392,27 +415,89 @@ INDUSTRY_NAME_MAP: dict[str, str] = {
     # dialect synonym of anything already above.
     "Uranium": "Uranium",
 
-    # Deliberately NOT mapped (checked, no good fit):
-    #   Specialty Chemicals / Chemicals / Fertilizers & Agricultural Chemicals /
-    #     Agricultural Inputs / Commodity Chemicals — no chemicals-specific ETF
-    #     with meaningfully better liquidity than the Materials sector SPDR
-    #     (XLB, already the sector-tier ETF); mapping here would just duplicate
-    #     the sector tier under a different name.
-    #   Education & Training Services / Specialty Business Services /
-    #     Staffing & Employment Services / Human Resource & Employment
-    #     Services / Personal Services — no liquid dedicated ETF.
-    #   Utilities - Regulated Electric/Gas/Water, Electric Utilities,
-    #     Multi-Utilities, Utilities - Independent Power Producers,
-    #     Utilities - Diversified, Independent Power Producers & Energy
-    #     Traders, Water Utilities, Gas Utilities — already fully covered by
-    #     the Utilities sector tier (XLU); no sub-utility ETF liquid enough
-    #     to be worth a separate Industry-tier entry.
-    #   Thermal Coal / Coking Coal — the obvious candidate (KOL) was
-    #     delisted; checked live on yfinance, ticker no longer resolves.
+    # Water Utilities — genuinely distinct businesses (AWK, WTRG, CWT, MSEX,
+    # ARTNA, CWCO, YORW...) from XLU's power/gas names, unlike every other
+    # utilities sub-type below. Confirmed live: PHO, $1.9B AUM, resolves.
+    "Utilities - Regulated Water": "Water Utilities",
+    "Water Utilities":             "Water Utilities",
+
+    # Agribusiness & Fertilizers — fertilizer/crop-input majors. Confirmed
+    # live: MOO, $1.1B AUM, resolves, real stock backing (NTR/CF/MOS/FMC/CTVA
+    # etc.) — a prior pass had dropped MOO for lacking backing at the time.
+    "Agricultural Inputs":                 "Agribusiness & Fertilizers",
+    "Fertilizers & Agricultural Chemicals": "Agribusiness & Fertilizers",
+
+    # Coal — thermal + metallurgical/coking coal miners. KOL (the obvious
+    # first pick) is delisted; COAL (Range Global Coal ETF) confirmed live,
+    # $53.5M AUM — thin but real and resolves.
+    "Thermal Coal": "Coal",
+    "Coking Coal":  "Coal",
+
+    # Deliberately NOT mapped (checked live on yfinance, no good fit):
+    #   Specialty Chemicals / Chemicals / Commodity Chemicals — the broad-
+    #     materials candidates (VAW $4.5B, FXZ $347M, IYM $1.3B) are all just
+    #     wider cuts of the same Materials universe XLB already covers at the
+    #     sector tier — none is a chemicals-specific pure play; mapping any
+    #     of them here would just duplicate the sector tier under a new name.
+    #   Education & Training Services — no real Education ETF currently
+    #     trades (checked EDUT — delisted/not found; LRNZ resolves but is an
+    #     AI/Deep-Learning fund despite the name, not education).
+    #   Specialty Business Services / Staffing & Employment Services /
+    #     Human Resource & Employment Services / Personal Services /
+    #     Specialized Consumer Services — no liquid dedicated ETF found.
+    #   Utilities - Regulated Electric/Gas, Electric Utilities, Gas
+    #     Utilities, Multi-Utilities, Utilities - Independent Power
+    #     Producers, Utilities - Diversified, Independent Power Producers &
+    #     Energy Traders — checked PUI ($47M AUM, ~4K avg volume — a thin
+    #     utilities-momentum fund, not a distinct sub-industry play) and
+    #     UTES (actively-managed, same broad utilities universe as XLU);
+    #     neither is a genuine standalone sub-industry the way water turned
+    #     out to be. Stays covered only by the Utilities sector tier (XLU).
 }
 
 
 UNCLASSIFIED = "Unclassified"
+
+
+# Cybersecurity pure-plays — a SYMBOL-level override, not an industry-string
+# entry in INDUSTRY_NAME_MAP like every cluster above. Yahoo/yfinance has no
+# distinct "Cybersecurity" industry tag: CrowdStrike, Okta, Zscaler etc. share
+# tickers.industry values ("Software - Infrastructure", "Systems Software")
+# with hundreds of unrelated companies (Microsoft, Oracle, SAP, Adobe, ...),
+# so remapping those strings wholesale would wrongly sweep every one of them
+# in too. This set is instead grounded in CIBR's actual top-10 live holdings
+# (First Trust NASDAQ Cybersecurity ETF, pulled via yfinance
+# Ticker('CIBR').funds_data.top_holdings — CRWD/FTNT/PANW/OKTA/NET/ZS/RBRK/
+# FFIV, ~8.1-8.9% each) plus other confirmed pure-play security vendors in
+# the live universe. CSCO and AVGO are CIBR holdings too but are diversified
+# networking/semiconductor megacaps, not security pure-plays — left in their
+# existing sector-tier homes (Communications Equipment / Semiconductors)
+# rather than pulled in here.
+CYBERSECURITY_SYMBOLS: set[str] = {
+    "CRWD",  # CrowdStrike
+    "PANW",  # Palo Alto Networks
+    "FTNT",  # Fortinet
+    "OKTA",  # Okta
+    "NET",   # Cloudflare
+    "ZS",    # Zscaler
+    "RBRK",  # Rubrik
+    "FFIV",  # F5 (BIG-IP / app & API security)
+    "CHKP",  # Check Point Software
+    "S",     # SentinelOne
+    "QLYS",  # Qualys
+    "TENB",  # Tenable
+    "RPD",   # Rapid7
+    "VRNS",  # Varonis Systems
+    "SAIL",  # SailPoint
+    "RDWR",  # Radware
+    "GEN",   # Gen Digital (Norton/LifeLock/Avast)
+    "TLS",   # Telos Corporation
+    "CLBT",  # Cellebrite (digital forensics)
+    "HUBC",  # HUB Cyber Security
+    "CISO",  # CISO Global
+    "AUID",  # authID (identity security)
+    "INTZ",  # Intrusion Inc.
+}
 
 
 def build_industry_index_map_rows(tickers: list[dict]) -> list[tuple]:
@@ -439,6 +524,9 @@ def build_industry_index_map_rows(tickers: list[dict]) -> list[tuple]:
     rows = []
     for t in tickers:
         if t.get("sector") == "Uncategorized":
+            continue
+        if t["symbol"] in CYBERSECURITY_SYMBOLS:
+            rows.append((t["symbol"], "Cybersecurity", INDUSTRY_ETF["Cybersecurity"], "official", "high"))
             continue
         industry = t.get("industry")
         display_name = INDUSTRY_NAME_MAP.get(industry)

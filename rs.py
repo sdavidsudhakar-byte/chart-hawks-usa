@@ -45,13 +45,19 @@ Q_BARS = 63   # ~3 months of trading days
 # very first day new index data lands, before all 39 have 252+ days of history.
 MIN_SYMBOLS_REQUIRED = 10
 
-# Sector Lens tab groupings — mirrors the index.html category tabs. With only
-# 15 total indices (4 broad-market ETFs + 11 sector SPDRs, no overlap), this
-# is a straight category→group mapping — no per-symbol exclude/extra lists
-# needed (those existed only to handle NSE's cross-listed derivative indices).
+# Sector Lens tab groupings — mirrors the index.html category tabs. This is a
+# straight category→group mapping — no per-symbol exclude/extra lists needed
+# (those existed only to handle NSE's cross-listed derivative indices).
 _SWING_GROUPS = {
     "BROAD":    {"cats": {"BROAD MARKET"}, "excl": set(), "extra": set()},
     "SECTORAL": {"cats": {"SECTORAL"},     "excl": set(), "extra": set()},
+    # Equal-weight ETFs rank against each other, not pooled with the
+    # cap-weight sector ETFs they're compared against.
+    "BREADTH":  {"cats": {"BREADTH"},      "excl": set(), "extra": set()},
+    # Industry tab: stock-backed industry ETFs (industry_etf_map.py) and
+    # stock-backing-free thematic discovery ETFs (thematic_etf_map.py) both
+    # carry category "INDUSTRY" in index_data.py and rank together as one
+    # combined peer pool, since they render in a single merged tab.
     "INDUSTRY": {"cats": {"INDUSTRY"},     "excl": set(), "extra": set()},
 }
 

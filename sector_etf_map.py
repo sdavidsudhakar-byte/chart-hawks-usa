@@ -11,6 +11,7 @@ exactly one Sector SPDR ETF — so no confidence-scoring mechanism is needed.
 Public API:
   SECTOR_ETF        — {GICS Sector name: ETF ticker}
   BROAD_MARKET_ETFS — {display name: ETF ticker}
+  EQUAL_WEIGHT_ETF   — {cap-weight ETF ticker: equal-weight counterpart ticker}
   build_sector_index_map_rows(tickers) — rows for db.upsert_sector_index_map
 """
 
@@ -36,6 +37,26 @@ BROAD_MARKET_ETFS: dict[str, str] = {
     "Nasdaq 100":     "QQQ",
     "Dow Jones":      "DIA",
     "Russell 2000":   "IWM",
+}
+
+# Equal-weight counterpart for each cap-weighted broad-market/sector ETF above —
+# powers Sector Lens' "Breadth" tab (narrow mega-cap-led rally vs broad
+# participation, e.g. SPY vs RSP, XLK vs RSPT). Invesco's "S&P 500 Equal Weight"
+# ETF family; tickers confirmed live against yfinance (1y history, resolves) —
+# not from memory, same discipline as industry_etf_map.py's AUM/volume checks.
+EQUAL_WEIGHT_ETF: dict[str, str] = {
+    "SPY":  "RSP",    # S&P 500 Equal Weight
+    "XLK":  "RSPT",   # Technology EW
+    "XLV":  "RSPH",   # Health Care EW
+    "XLF":  "RSPF",   # Financials EW
+    "XLY":  "RSPD",   # Consumer Discretionary EW
+    "XLP":  "RSPS",   # Consumer Staples EW
+    "XLI":  "RSPN",   # Industrials EW
+    "XLB":  "RSPM",   # Materials EW
+    "XLE":  "RSPG",   # Energy EW
+    "XLU":  "RSPU",   # Utilities EW
+    "XLRE": "RSPR",   # Real Estate EW
+    "XLC":  "RSPC",   # Communication Services EW
 }
 
 # yfinance's Ticker.info['sector'] uses Yahoo's own sector taxonomy, which

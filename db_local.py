@@ -1164,20 +1164,15 @@ def get_scanner_results(direction, macros, sectors, industries, basic_industries
         extra = ("AND (" + " OR ".join(group_conds) + ")") if group_conds else ""
         params.extend(group_params)
     sql = f"""SELECT sr.symbol, sr.company_name, sr.macro, sr.sector, sr.industry,
-                     sr.basic_industry, sr.direction, sr.m_date, sr.bull_cross_date,
-                     sr.s_pullback_date, sr.c_pullback_date, sr.above_200sma, sr.scanned_at,
-                     sr.m_price
+                     sr.basic_industry, sr.direction, sr.bull_cross_date,
+                     sr.above_200sma, sr.scanned_at
               FROM scanner_results sr
-              WHERE sr.direction=? {extra}
-              ORDER BY MAX(COALESCE(sr.m_date,''), COALESCE(sr.bull_cross_date,''),
-                           COALESCE(sr.s_pullback_date,''), COALESCE(sr.c_pullback_date,'')) DESC,
-                       sr.symbol"""
+              WHERE sr.direction=? AND sr.bull_cross_date IS NOT NULL {extra}
+              ORDER BY sr.bull_cross_date DESC, sr.symbol"""
     rows = conn.execute(sql, params).fetchall()
     return [{"symbol": r[0], "company_name": r[1], "macro": r[2], "sector": r[3],
              "industry": r[4], "basic_industry": r[5], "direction": r[6],
-             "m_date": r[7], "bull_cross_date": r[8], "s_pullback_date": r[9],
-             "c_pullback_date": r[10], "above_200sma": bool(r[11]), "scanned_at": r[12],
-             "m_price": r[13]} for r in rows]
+             "bull_cross_date": r[7], "above_200sma": bool(r[8]), "scanned_at": r[9]} for r in rows]
 
 
 # ── Scan Signals (hourly cycle enrichment) ───────────────────────────────────

@@ -2,11 +2,20 @@
 index_data.py — US sector/broad-market/industry index master list and
 yfinance OHLCV fetcher.
 
-Replaces the ~80-index Nifty master list with a 3-tier US structure:
+Replaces the ~80-index Nifty master list with a 4-tier US structure:
   BROAD MARKET — 4 broad-market benchmark ETFs
   SECTORAL     — 11 GICS Sector SPDR ETFs (sector_etf_map.py)
-  INDUSTRY     — ~24 real liquid industry ETFs, one level deeper
-                 (industry_etf_map.py)
+  BREADTH      — equal-weight counterpart of each broad-market/sector ETF,
+                 for cap-weight-vs-equal-weight narrow-leadership analysis
+                 (sector_etf_map.EQUAL_WEIGHT_ETF)
+  INDUSTRY     — real liquid industry/thematic ETFs, one level deeper. Two
+                 sources merged into one tab/peer-ranking pool:
+                   - industry_etf_map.py: each entry has real mapped stock
+                     backing in the tickers table (feeds the Hawks Index
+                     stock filter via sector_index_map)
+                   - thematic_etf_map.py: broad ETF discovery with NO stock-
+                     backing requirement (doesn't feed the stock filter)
+                 Both rank together as one combined peer group in rs.py.
 
 Public API:
   ALL_INDICES      — list of IndexInfo namedtuples
@@ -24,26 +33,48 @@ import db
 import market_data
 import sector_etf_map
 import industry_etf_map
+import thematic_etf_map
 
 logger = logging.getLogger(__name__)
 
 
 class IndexInfo(NamedTuple):
-    symbol:   str    # ETF ticker, e.g. "XLK"
-    name:     str    # Display name
-    category: str    # BROAD MARKET | SECTORAL | INDUSTRY
+    symbol:      str          # ETF ticker, e.g. "XLK"
+    name:        str          # Display name — NOT ticker-prefixed: this is the
+                               # same string sector_etf_map/industry_etf_map use
+                               # as index_name in sector_index_map, matched 1:1
+                               # against hawks_mappings by the Hawks Index filter
+                               # (templates/index.html ~6325) — renaming it here
+                               # would silently break that filter for every stock.
+                               # Ticker-prefixed display ("XLK - ...") is done at
+                               # render time in the UI instead (see renderSwingRadar).
+    category:    str          # BROAD MARKET | SECTORAL | BREADTH | INDUSTRY
+    pair_symbol: str | None = None  # cap-weight <-> equal-weight counterpart ticker
 
+
+# Cap-weight symbol -> plain description, needed to build the BREADTH tier's
+# names ("<description> (Equal Weight)") and to backfill pair_symbol onto the
+# cap-weight rows.
+_CW_DESC_BY_SYMBOL: dict[str, str] = {
+    **{sym: name for name, sym in sector_etf_map.BROAD_MARKET_ETFS.items()},
+    **{sym: sector for sector, sym in sector_etf_map.SECTOR_ETF.items()},
+}
+_EW_PAIR = sector_etf_map.EQUAL_WEIGHT_ETF          # {cw_sym: ew_sym}
+_CW_PAIR = {ew: cw for cw, ew in _EW_PAIR.items()}  # {ew_sym: cw_sym}
 
 ALL_INDICES: list[IndexInfo] = (
-    [IndexInfo(sym, name, "BROAD MARKET") for name, sym in sector_etf_map.BROAD_MARKET_ETFS.items()]
-    + [IndexInfo(sym, sector, "SECTORAL") for sector, sym in sector_etf_map.SECTOR_ETF.items()]
+    [IndexInfo(sym, name, "BROAD MARKET", _EW_PAIR.get(sym)) for name, sym in sector_etf_map.BROAD_MARKET_ETFS.items()]
+    + [IndexInfo(sym, sector, "SECTORAL", _EW_PAIR.get(sym)) for sector, sym in sector_etf_map.SECTOR_ETF.items()]
+    + [IndexInfo(ew_sym, f"{_CW_DESC_BY_SYMBOL[cw_sym]} (Equal Weight)", "BREADTH", cw_sym)
+       for cw_sym, ew_sym in _EW_PAIR.items()]
     + [IndexInfo(sym, name, "INDUSTRY") for name, sym in industry_etf_map.INDUSTRY_ETF.items()]
+    + [IndexInfo(sym, name, "INDUSTRY") for name, sym in thematic_etf_map.THEMATIC_ETF.items()]
 )
 
 SYMBOLS: list[str] = [idx.symbol for idx in ALL_INDICES]
 _SYMBOL_MAP: dict[str, IndexInfo] = {idx.symbol: idx for idx in ALL_INDICES}
 
-CATEGORY_ORDER = ["BROAD MARKET", "SECTORAL", "INDUSTRY"]
+CATEGORY_ORDER = ["BROAD MARKET", "SECTORAL", "BREADTH", "INDUSTRY"]
 
 
 def by_category() -> dict[str, list[IndexInfo]]:

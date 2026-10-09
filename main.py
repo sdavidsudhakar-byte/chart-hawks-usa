@@ -871,23 +871,15 @@ async def api_run_scanner(request: Request):
             return JSONResponse({"ok": False, "message": "Price refresh is running — wait for it to finish."}, status_code=409)
         _scanner_running = True
 
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-
     # Reserve a run_id immediately so the frontend can poll the exact run
     run_id = db.scanner_run_start()
-
-    atr_mult   = float(body.get("atr_mult",   scanner_module.DEFAULT_ATR_MULT))
-    c_atr_mult = float(body.get("c_atr_mult", scanner_module.DEFAULT_ATR_MULT))
 
     def _run():
         global _scanner_running
         scanner_result = None
         try:
-            logger.info("Manual scanner: Daily Hunt scan starting (run_id=%d, atr_mult=%.2f, c_atr_mult=%.2f)...", run_id, atr_mult, c_atr_mult)
-            scanner_result = scanner_module.run_full_scan(run_id=run_id, atr_mult=atr_mult, c_atr_mult=c_atr_mult)
+            logger.info("Manual scanner: Daily Hunt scan starting (run_id=%d)...", run_id)
+            scanner_result = scanner_module.run_full_scan(run_id=run_id)
             if scanner_result and scanner_result.get("oldest_scan_date"):
                 db.set_app_state("oldest_scan_date", scanner_result["oldest_scan_date"])
             logger.info("Manual scanner: Daily Hunt done — %s", scanner_result)
@@ -1032,9 +1024,8 @@ async def api_scan_signals(request: Request):
         # by hourly_scanner.py's "hourly cycle enrichment" pass (see its
         # upsert_scan_signals() callers — there are none left), so since
         # hourly_scanner.py was removed, scan_signals has been a frozen
-        # snapshot that nothing refreshes. Only the two signal types actually
-        # in use (M-High/Low breakout + Daily Cross) matter here — pullback
-        # (S-PB/C-PB) is old, unused code and deliberately not revived.
+        # snapshot that nothing refreshes. Daily Cross is the only signal
+        # type now — Monthly High/Low and S-PB/C-PB pullback are removed.
         rows = db.get_scanner_results(
             direction, list(macros), list(sectors), list(industries), list(basic_industries),
             indices=list(indices) if indices else None,
@@ -1051,11 +1042,8 @@ async def api_scan_signals(request: Request):
             enrich_rows.append({
                 "symbol": r["symbol"],
                 "direction": r["direction"],
-                "m_date": r.get("m_date"),
-                "m_price": r.get("m_price"),
                 "bull_cross_date": r.get("bull_cross_date"),
                 "above_200sma": r.get("above_200sma", 0),
-                "_phase_end_date": None,
                 "_daily_cross_date": r.get("bull_cross_date"),
             })
 
@@ -1132,11 +1120,8 @@ async def api_scan_signals(request: Request):
                 "industry":         r.get("industry", ""),
                 "basic_industry":   r.get("basic_industry", ""),
                 "direction":        r["direction"],
-                "m_date":           r.get("m_date"),
-                "m_price":          r.get("m_price"),
                 "daily_cross_date": r.get("_daily_cross_date"),
                 "above_200sma":     r.get("above_200sma", 0),
-                "phase_end_date":   r.get("_phase_end_date"),
                 "index_list":       r.get("index_list", []),
                 "hawks_mappings":   r.get("hawks_mappings", []),
                 "rs21":             r.get("rs21"),
@@ -1317,9 +1302,8 @@ def _build_journal_snapshot(symbol: str) -> dict:
             if d_rows:
                 dr = d_rows[0]
                 snap["hunt"]["daily"] = {
-                    "direction": direction, "m_date": dr.get("m_date"),
-                    "s_pullback_date": dr.get("s_pullback_date"),
-                    "c_pullback_date": dr.get("c_pullback_date"),
+                    "direction": direction,
+                    "bull_cross_date": dr.get("bull_cross_date"),
                     "above_200sma": bool(dr.get("above_200sma")),
                 }
                 break
@@ -1746,6 +1730,7 @@ def api_swing_radar():
             "symbol":      sym,
             "name":        info.name,
             "category":    info.category,
+            "pair_symbol": info.pair_symbol,
             "close":       round(float(rs["close"]), 2) if rs["close"] is not None else None,
             "close_21":    None,
             "close_55":    None,
@@ -2164,19 +2149,9 @@ def api_trading_date_cutoff(days: int = 45):
 
 @app.get("/api/settings")
 async def api_get_settings():
-    atr     = db.get_app_state("atr_mult")
-    c_atr   = db.get_app_state("c_atr_mult")
-    days    = db.get_app_state("scan_days")
-    h_atr   = db.get_app_state("h_atr_mult")
-    h_c_atr = db.get_app_state("h_c_atr_mult")
-    h_days  = db.get_app_state("h_scan_days")
+    days = db.get_app_state("scan_days")
     return JSONResponse({
-        "atr_mult":     float(atr)     if atr     else 0.5,
-        "c_atr_mult":   float(c_atr)   if c_atr   else 0.5,
-        "scan_days":    int(days)       if days     else 30,
-        "h_atr_mult":   float(h_atr)   if h_atr   else 0.5,
-        "h_c_atr_mult": float(h_c_atr) if h_c_atr else 0.5,
-        "h_scan_days":  int(h_days)    if h_days   else 30,
+        "scan_days": int(days) if days else 30,
     })
 
 
@@ -2186,24 +2161,9 @@ async def api_save_settings(request: Request):
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
-    if "atr_mult" in body:
-        val = max(0.1, min(3.0, float(body["atr_mult"])))
-        db.set_app_state("atr_mult", str(val))
-    if "c_atr_mult" in body:
-        val = max(0.1, min(3.0, float(body["c_atr_mult"])))
-        db.set_app_state("c_atr_mult", str(val))
     if "scan_days" in body:
-        val = max(1, min(90, int(body["scan_days"])))
-        db.set_app_state("scan_days", str(val))  # stored for UI display only — scanner always uses 45
-    if "h_atr_mult" in body:
-        val = max(0.1, min(3.0, float(body["h_atr_mult"])))
-        db.set_app_state("h_atr_mult", str(val))
-    if "h_c_atr_mult" in body:
-        val = max(0.1, min(3.0, float(body["h_c_atr_mult"])))
-        db.set_app_state("h_c_atr_mult", str(val))
-    if "h_scan_days" in body:
-        val = max(1, min(90, int(body["h_scan_days"])))
-        db.set_app_state("h_scan_days", str(val))
+        val = max(0, min(60, int(body["scan_days"])))
+        db.set_app_state("scan_days", str(val))  # stored for UI display only — scanner always scans last 60 days
     return JSONResponse({"ok": True})
 
 

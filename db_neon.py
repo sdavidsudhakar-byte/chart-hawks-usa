@@ -1005,8 +1005,7 @@ def upsert_scanner_results(rows: list[dict]):
     """
     Bulk upsert Daily Hunt scanner result rows.
     Each dict: {symbol, company_name, macro, sector, industry, basic_industry,
-                direction, m_date, bull_cross_date, s_pullback_date, c_pullback_date,
-                above_200sma}
+                direction, bull_cross_date, above_200sma}
     On conflict (symbol, direction) replace the entire row — one row per symbol per direction.
     """
     if not rows:
@@ -1014,32 +1013,23 @@ def upsert_scanner_results(rows: list[dict]):
     sql = """
     INSERT INTO scanner_results
         (symbol, company_name, macro, sector, industry, basic_industry,
-         direction, m_date, m_price, bull_cross_date, s_pullback_date, c_pullback_date,
-         above_200sma, scanned_at)
+         direction, bull_cross_date, above_200sma, scanned_at)
     VALUES
         (%(symbol)s, %(company_name)s, %(macro)s, %(sector)s, %(industry)s,
-         %(basic_industry)s, %(direction)s, %(m_date)s, %(m_price)s, %(bull_cross_date)s,
-         %(s_pullback_date)s, %(c_pullback_date)s, %(above_200sma)s, NOW())
+         %(basic_industry)s, %(direction)s, %(bull_cross_date)s, %(above_200sma)s, NOW())
     ON CONFLICT (symbol, direction) DO UPDATE SET
         company_name    = EXCLUDED.company_name,
         macro           = EXCLUDED.macro,
         sector          = EXCLUDED.sector,
         industry        = EXCLUDED.industry,
         basic_industry  = EXCLUDED.basic_industry,
-        m_date          = EXCLUDED.m_date,
-        m_price         = EXCLUDED.m_price,
         bull_cross_date = EXCLUDED.bull_cross_date,
-        s_pullback_date = EXCLUDED.s_pullback_date,
-        c_pullback_date = EXCLUDED.c_pullback_date,
         above_200sma    = EXCLUDED.above_200sma,
         scanned_at      = NOW()
     """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            # ensure m_price key present for every row (execute_batch needs all params)
-            for r in rows:
-                r.setdefault("m_price", None)
             psycopg2.extras.execute_batch(cur, sql, rows, page_size=200)
         conn.commit()
     finally:
@@ -1130,25 +1120,17 @@ def get_scanner_results(
         if group_conds:
             conditions.append("(" + " OR ".join(group_conds) + ")")
 
+    conditions.append("sr.bull_cross_date IS NOT NULL")
     where = " AND ".join(conditions)
     sql = f"""
         SELECT sr.symbol, sr.company_name, sr.macro, sr.sector, sr.industry, sr.basic_industry,
                sr.direction,
-               sr.m_date::text,
-               sr.m_price,
                sr.bull_cross_date::text,
-               sr.s_pullback_date::text,
-               sr.c_pullback_date::text,
                COALESCE(sr.above_200sma, FALSE) AS above_200sma,
                sr.scanned_at
         FROM {from_clause}
         WHERE {where}
-        ORDER BY GREATEST(
-            COALESCE(sr.m_date, '1970-01-01'::date),
-            COALESCE(sr.bull_cross_date, '1970-01-01'::date),
-            COALESCE(sr.s_pullback_date, '1970-01-01'::date),
-            COALESCE(sr.c_pullback_date, '1970-01-01'::date)
-        ) DESC, sr.symbol
+        ORDER BY sr.bull_cross_date DESC, sr.symbol
     """
     conn = get_conn()
     try:
