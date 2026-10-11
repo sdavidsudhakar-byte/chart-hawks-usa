@@ -7972,12 +7972,15 @@ function jrnlExportCSV(){
       <div style="padding:5px 10px 4px;border-bottom:1px solid #d0d7de;flex-shrink:0;background:#ffffff;display:flex;align-items:center;gap:8px;">
         <div id="ibdChartSymbol" style="font-size:.88rem;font-weight:800;color:#0969da;letter-spacing:-.02em;line-height:1.1;white-space:nowrap;flex-shrink:0;"></div>
         <div id="ibdChartName"   style="font-size:.72rem;font-weight:600;color:#444d56;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;"></div>
+        <div id="ibdChartQSep" style="display:none;width:1px;height:14px;background:#d0d7de;flex-shrink:0;"></div>
+        <span id="ibdChartQLabel" style="display:none;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;flex-shrink:0;">QUARTERLY</span>
         <!-- signals hidden from header — kept in DOM for JS compatibility -->
         <div id="ibdSignalDates" style="display:none;"></div>
       </div>
 
-      <!-- Score body -->
-      <div style="flex:1;min-height:0;overflow:hidden;padding:5px 8px;display:flex;flex-direction:column;gap:4px;">
+      <!-- Score body / Ratings view (Stock + Broad Market + Sector) — toggled
+           against #ibdMiniChartWrap (Quarterly view) by ibdToggleRatings() -->
+      <div id="ibdRatingsBody" style="flex:1;min-height:0;overflow:hidden;padding:5px 8px;display:flex;flex-direction:column;gap:4px;">
 
         <!-- Two-row column header: group labels + LT/MID/ST labels -->
         <div style="flex-shrink:0;padding:0 3px;">
@@ -8028,8 +8031,16 @@ function jrnlExportCSV(){
 
       </div>
 
+      <!-- Quarterly mini-chart view — toggled against #ibdRatingsBody by
+           ibdToggleRatings(); built lazily via _buildMiniChart() -->
+      <div id="ibdMiniChartWrap" style="display:none;flex:1;min-height:0;flex-direction:column;">
+        <div id="ibdMiniChart"   style="flex:1;min-height:0;"></div>
+        <div id="ibdRsSepQ"      style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+        <div id="ibdMiniChartRs" style="height:68px;flex-shrink:0;"></div>
+      </div>
+
       <!-- Legend footer -->
-      <div style="border-top:1px solid #d0d7de;padding:3px 8px;flex-shrink:0;background:#f6f8fa;">
+      <div id="ibdLegendFooter" style="border-top:1px solid #d0d7de;padding:3px 8px;flex-shrink:0;background:#f6f8fa;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#d4a017;display:inline-block;border-radius:1px;"></span>EMA20</span>
           <span style="display:flex;align-items:center;gap:2px;font-size:.50rem;color:#57606a;"><span style="width:11px;height:2px;background:#1a73e8;display:inline-block;border-radius:1px;"></span>EMA50</span>
@@ -8054,6 +8065,8 @@ function jrnlExportCSV(){
         " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fff'">✕ Close</button>
       </div>
       <div id="ibdChartWeekly" style="flex:1;min-height:0;"></div>
+      <div id="ibdRsSepM"        style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+      <div id="ibdChartWeeklyRs" style="height:68px;flex-shrink:0;"></div>
     </div>
 
     <!-- ══ BOTTOM-LEFT: WEEKLY chart ══ -->
@@ -8062,15 +8075,22 @@ function jrnlExportCSV(){
                   color:#57606a;letter-spacing:.08em;border-bottom:1px solid #e4e7eb;
                   background:#f6f8fa;flex-shrink:0;">WEEKLY</div>
       <div id="ibdChartDaily" style="flex:1;min-height:0;"></div>
-      <div style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+      <div id="ibdRsSepW" style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
       <div id="ibdChartDailyRs" style="height:68px;flex-shrink:0;"></div>
     </div>
 
     <!-- ══ BOTTOM-RIGHT: DAILY chart ══ -->
     <div style="grid-area:hourly;background:#fff;display:flex;flex-direction:column;min-height:0;min-width:0;">
       <div style="display:flex;align-items:center;padding:3px 6px;border-bottom:1px solid #e4e7eb;background:#f6f8fa;flex-shrink:0;gap:6px;">
+        <button id="ibdViewRatingsBtn" onclick="ibdToggleRatings()" title="Toggle Broad Market / Sector ratings view"
+                style="font-size:.6rem;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid #0969da;cursor:pointer;line-height:1.4;background:transparent;color:#0969da;flex-shrink:0;">Ratings</button>
+        <div style="width:1px;height:14px;background:#d0d7de;flex-shrink:0;"></div>
         <button id="ibdLongBtn"  onclick="ibdPositionTool('long')"  style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #2ea043;background:rgba(46,160,67,.12);color:#2ea043;cursor:pointer;line-height:1.4;">▲ Long</button>
         <button id="ibdClearBtn" onclick="ibdPositionTool('clear')" style="font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid #888;background:transparent;color:#888;cursor:pointer;line-height:1.4;display:none;">✕</button>
+        <div style="width:1px;height:14px;background:#d0d7de;flex-shrink:0;"></div>
+        <button type="button" id="ibdChartWlStar" class="wl-star" title="Add to watchlist"
+                style="display:none;width:auto;height:auto;position:static;top:0;background:none;border:none;cursor:pointer;font-size:1.3rem;line-height:1;padding:0;flex-shrink:0;"
+                onclick="_ibdHeaderWlToggle(event)">☆</button>
         <span style="flex:1;text-align:center;font-size:.62rem;font-weight:700;color:#57606a;letter-spacing:.08em;">DAILY</span>
         <span style="font-size:.58rem;color:#888;font-weight:600;">KC</span>
         <input id="ibdKcLength" type="number" min="5" max="200" value="50" title="KC EMA length"
@@ -8088,7 +8108,7 @@ function jrnlExportCSV(){
                 style="font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid #9b8ec4;background:transparent;color:#9b8ec4;cursor:pointer;line-height:1.4;margin-left:4px;">RSI</button>
       </div>
       <div id="ibdChartHourly"    style="flex:1;min-height:0;"></div>
-      <div style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
+      <div id="ibdRsSepD"         style="height:1px;background:#d0d7de;flex-shrink:0;"></div>
       <div id="ibdChartHourlyRs" style="height:68px;flex-shrink:0;"></div>
       <div id="ibdRsiSep"         style="height:1px;background:#d0d7de;flex-shrink:0;display:none;"></div>
       <div id="ibdChartHourlyRsi" style="height:90px;flex-shrink:0;display:none;"></div>
@@ -8111,14 +8131,11 @@ function jrnlExportCSV(){
   const EMA20_COL   = '#d4a017';
   const EMA50_COL   = '#1a73e8';
   const SMA200_COL  = '#888888';
-  const RS_COL      = 'rgba(117,117,117,0.55)'; // muted gray — RS subpanel line, axis labels, legend swatch
+  const RS_COL      = 'rgba(136,153,170,0.35)'; // always muted
   // Fixed price-scale (axis) gutter width shared by the price chart and the
   // RS subpanel chart, so their plot areas stay pixel-aligned — see the
   // minimumWidth comment above priceChart's 'right' scale options.
-  const RS_AXIS_WIDTH = 58;
-  // Empty bar-widths of breathing room left after the last candle — see
-  // _setVisible for why this can't just be the timeScale `rightOffset` option.
-  const RIGHT_GAP_BARS = 6;
+  const RS_AXIS_WIDTH = 68;
   const VOL_UP      = 'rgba(38,166,154,0.25)';
   const VOL_DOWN    = 'rgba(239,83,80,0.25)';
   const SIG_MHIGH   = '#e53935';
@@ -8126,38 +8143,49 @@ function jrnlExportCSV(){
   const SIG_BCROSS  = '#1a73e8';
   const SIG_SPB     = '#e67e22';
   const SIG_CPB     = '#9b59b6';
+  const CROSSHAIR_LABEL_BG = '#dfe2e6'; // lighter muted grey — was the library's default black
 
-  // Default visible bars per timeframe — show last N candles, user can scroll for more.
-  const VISIBLE_BARS = { monthly: 60, weekly: 150, daily: 100 };
+  // Fixed pixel width per candle — set once on every chart (PRICE_OPTS.timeScale
+  // below) so quarterly/monthly/weekly/daily all render candles at the EXACT
+  // SAME size, regardless of how many total bars each timeframe/symbol has.
+  // This is what actually fixes "huge candles" for thin-history symbols — a
+  // logical-range-based approach (stretch N bars to fill the panel) blows up
+  // when N is small (e.g. 2 quarterly bars stretched across the full width).
+  const BAR_SPACING_PX = 4;
+  // Empty space to the right of the latest candle, in bar-widths — TradingView's
+  // default "breathing room" so the last bar isn't flush against the axis.
+  const RIGHT_OFFSET_BARS = 8;
+
+  // Span (in bars) used only when centering on a clicked/synced historical bar
+  // (see _scrollIntoView / _syncChartsToDate) — NOT used for the default view
+  // (that's BAR_SPACING_PX + scrollToRealTime, see _setVisible).
+  const VISIBLE_BARS = { monthly: 60, weekly: 150, daily: 100, quarterly: 150 };
 
   const PRICE_OPTS = {
-    layout:      { background: { color: BG }, textColor: TEXT_COLOR },
-    grid:        { vertLines: { color: GRID }, horzLines: { color: GRID } },
+    layout:      { background: { color: BG }, textColor: TEXT_COLOR, attributionLogo: false },
+    grid:        { vertLines: { visible: false }, horzLines: { visible: false } },
     // Normal (0), not Magnet (1): Magnet snaps the horizontal line to each
     // series' own close price, so a synced crosshair would land on each chart's
     // own bar (100/120/150 mismatch). Normal honours the exact price we pass to
     // setCrosshairPosition, letting all three charts show the same price.
-    // Label backgrounds: lighter gray instead of the library's near-black
-    // default, which looked harsh against this light-themed chart panel.
+    // Muted light-grey label backgrounds instead of the library's default black.
     crosshair: {
       mode: 0,
-      vertLine: { labelBackgroundColor: '#8c959f' },
-      // Lighter than vertLine's — but not too pale: the label text itself is
-      // rendered white with no separate color option in this library version,
-      // so going much lighter than this would hurt readability.
-      horzLine: { labelBackgroundColor: '#a7b1bd' },
+      vertLine: { labelBackgroundColor: CROSSHAIR_LABEL_BG },
+      horzLine: { labelBackgroundColor: CROSSHAIR_LABEL_BG },
     },
     rightPriceScale: { borderColor: BORDER, visible: true },
     leftPriceScale:  { visible: false },
-    // rightOffset: TradingView always leaves a few empty bars of breathing
-    // room to the right of the latest candle instead of jamming it against
-    // the axis — this was previously 0 (the library default).
     timeScale:   { borderColor: BORDER, timeVisible: true, secondsVisible: false,
-                   fixLeftEdge: false, fixRightEdge: false, rightOffset: 5 },
+                   fixLeftEdge: false, fixRightEdge: false, barSpacing: BAR_SPACING_PX,
+                   rightOffset: RIGHT_OFFSET_BARS },
     handleScroll: true, handleScale: true,
   };
 
   let _charts           = [];   // { priceChart, candleSeries, rsSeries, timeframe, candles, rsByTime }
+  let _ibdView          = '3m'; // 'ratings' | '3m' (Quarterly) — persists across symbol navigation
+  let _pendingTargetDate = null;
+  let _miniChart         = null;
   let _currentSym       = null;
   let _loading          = false;
   let _rsHistory        = {};
@@ -8420,6 +8448,7 @@ function jrnlExportCSV(){
 
     // ── Advanced pane only: Keltner bands on price + RSI true sub-pane ──────
     let rsiChart = null;
+    let rsiLine  = null;
     if (isAdvancedPane) {
       const isBullDir = (signals?.direction || 'bull') === 'bull';
       _kcDirection = isBullDir ? 'bull' : 'bear';
@@ -8464,13 +8493,17 @@ function jrnlExportCSV(){
           ...PRICE_OPTS,
           width:  rsiEl.clientWidth  || 380,
           height: rsiEl.clientHeight || 90,
-          timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, borderColor: BORDER },
-          rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0.1, bottom: 0.1 } },
+          // RSI is now the bottommost pane — it gets the single visible time
+          // axis, so hide the RS pane's axis above it (it was the bottommost
+          // before RSI existed).
+          timeScale: { ...PRICE_OPTS.timeScale, timeVisible: true, borderColor: BORDER },
+          rightPriceScale: { borderColor: BORDER, visible: true, minimumWidth: RS_AXIS_WIDTH, scaleMargins: { top: 0.1, bottom: 0.1 } },
           leftPriceScale: { visible: false },
-          grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
+          grid: { vertLines: { visible: false }, horzLines: { visible: false } },
         });
+        if (rsChart) try { rsChart.timeScale().applyOptions({ visible: false }); } catch(e){}
 
-        const rsiLine = rsiChart.addLineSeries({
+        rsiLine = rsiChart.addLineSeries({
           color: '#9b8ec4', lineWidth: 1,
           lastValueVisible: true, priceLineVisible: false,
           crosshairMarkerVisible: true,
@@ -8515,7 +8548,7 @@ function jrnlExportCSV(){
     // TradingView, instead of a line squeezed into the price pane's margins.
     // weekly and daily only (not monthly). Always visible (unlike the RSI
     // pane, which is opt-in via its toggle button).
-    let rsChart = null, rsSeries = null;
+    let rsChart = null, rsSeries = null, roRs = null;
     if (timeframe !== 'monthly' && data.rs && data.rs.length) {
       const rsEl = document.getElementById(priceId + 'Rs');
       if (rsEl) {
@@ -8538,7 +8571,7 @@ function jrnlExportCSV(){
           // minimumWidth matches the price chart's — see RS_AXIS_WIDTH.
           rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0, bottom: 0 }, minimumWidth: RS_AXIS_WIDTH },
           leftPriceScale: { visible: false },
-          grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
+          grid: { vertLines: { visible: false }, horzLines: { visible: false } },
         });
 
         rsSeries = rsChart.addLineSeries({
@@ -8609,7 +8642,7 @@ function jrnlExportCSV(){
           try { rsChart.setCrosshairPosition(pt.value, pt.time, rsSeries); } catch(e){}
         });
 
-        const roRs = new ResizeObserver(() => {
+        roRs = new ResizeObserver(() => {
           try { rsChart.applyOptions({ width: rsEl.clientWidth, height: rsEl.clientHeight }); } catch(e){}
         });
         roRs.observe(rsEl);
@@ -8650,8 +8683,9 @@ function jrnlExportCSV(){
     // Pre-build lookup map for O(1) nearest-candle resolution during crosshair sync
     const candleMap = _buildCandleMap(data.candles, timeframe);
 
-    _charts.push({ priceChart, candleSeries, rsSeries, rsChart, rsiChart, timeframe, priceId,
-                   candles: data.candles, rsByTime, candleMap, keltner: _chartKeltner });
+    _charts.push({ priceChart, candleSeries, rsSeries, rsChart, rsiChart, rsiLine, timeframe, priceId,
+                   candles: data.candles, volume: data.volume, rsByTime, candleMap, keltner: _chartKeltner,
+                   roP, roRs });
     return priceChart;
   }
 
@@ -8664,7 +8698,7 @@ function jrnlExportCSV(){
       candles.forEach(c => m.set(c.time, c));
       return m;
     }
-    const capDays = timeframe === 'monthly' ? 31 : 7;
+    const capDays = timeframe === 'monthly' ? 31 : timeframe === 'quarterly' ? 92 : 7;
     for (let i = 0; i < candles.length; i++) {
       const c = candles[i];
       const start = new Date(c.time + 'T00:00:00');
@@ -8678,21 +8712,15 @@ function jrnlExportCSV(){
     return m;
   }
 
-  // Show the last `VISIBLE_BARS[timeframe]` bars using logical range (like TradingView's
-  // default view). Logical range keeps a consistent bar-count regardless of date gaps.
+  // Same fixed BAR_SPACING_PX for every panel — no per-timeframe special-casing.
+  // Re-asserted explicitly here (not just relied on from createChart time) in
+  // case setData()'s initial auto-fit changed it before this runs.
   function _setVisible(chart, bars, timeframe) {
     if (!bars || !bars.length) return;
-    const n       = bars.length;
-    const visible = VISIBLE_BARS[timeframe] || n;
     try {
       const ts = chart.timeScale();
-      // setVisibleLogicalRange shows exactly `visible` bars, with a chunk of
-      // empty space after the last one — matches TradingView's default gap.
-      // timeScale's `rightOffset` option does the same thing for *automatic*
-      // positioning (fitContent/scrollToRealTime), but has no effect on an
-      // explicit setVisibleLogicalRange call like this one, so the gap has
-      // to be baked into `to` directly here instead.
-      ts.setVisibleLogicalRange({ from: Math.max(0, n - visible), to: n + RIGHT_GAP_BARS });
+      ts.applyOptions({ barSpacing: BAR_SPACING_PX });
+      ts.scrollToRealTime();
     } catch(e) {
       try { chart.timeScale().scrollToRealTime(); } catch(e2) {}
     }
@@ -8804,7 +8832,16 @@ function jrnlExportCSV(){
   let _rafPending          = false;  // rAF throttle for score updates
 
   function _subscribeCrosshair() {
-    _charts.forEach((entry, i) => {
+    _charts.forEach(_wireChartSync);
+  }
+
+  // Wires ONE chart entry into the shared crosshair/click sync system. Reads
+  // the LIVE _charts array (not a snapshot) inside its callbacks, so charts
+  // added later (e.g. the lazily-built Quarterly mini-chart) are automatically
+  // picked up by every already-subscribed panel too — only the new entry
+  // itself needs this called once, after it's pushed into _charts, for full
+  // bidirectional sync.
+  function _wireChartSync(entry, i) {
       // Hover: sync crosshair position across charts + update score column.
       // Does NOT reposition any chart's time axis — that only happens on click.
       entry.priceChart.subscribeCrosshairMove(param => {
@@ -8826,7 +8863,10 @@ function jrnlExportCSV(){
           if (!_syncActive) {
             _syncActive = true;
             _charts.forEach((o, j) => {
-              if (j !== i) try { o.priceChart.clearCrosshairPosition(); } catch(e){}
+              if (j === i) return;
+              try { o.priceChart.clearCrosshairPosition(); } catch(e){}
+              try { if (o.rsChart) o.rsChart.clearCrosshairPosition(); } catch(e){}
+              try { if (o.rsiChart) o.rsiChart.clearCrosshairPosition(); } catch(e){}
             });
             _syncActive = false;
           }
@@ -8872,9 +8912,20 @@ function jrnlExportCSV(){
         _charts.forEach((other, j) => {
           if (j === i) return;
           const bar = _nearestCandle(other.candles, dateStr, other.timeframe, other.candleMap);
-          if (!bar || hoverPrice == null) { try { other.priceChart.clearCrosshairPosition(); } catch(e){} return; }
+          if (!bar || hoverPrice == null) {
+            try { other.priceChart.clearCrosshairPosition(); } catch(e){}
+            try { if (other.rsChart) other.rsChart.clearCrosshairPosition(); } catch(e){}
+            try { if (other.rsiChart) other.rsiChart.clearCrosshairPosition(); } catch(e){}
+            return;
+          }
           // Same price on every chart — each maps it through its own scale.
           try { other.priceChart.setCrosshairPosition(hoverPrice, bar.time, other.candleSeries); } catch(e){}
+          // Subpane sync normally rides on the source panel's OWN crosshairMove
+          // listener (wired above) — but that only fires for a REAL mouse event
+          // on that chart. The call above is programmatic, so it never reaches
+          // it; set each subpane's crosshair directly instead.
+          try { if (other.rsChart && other.rsSeries) other.rsChart.setCrosshairPosition(0, bar.time, other.rsSeries); } catch(e){}
+          try { if (other.rsiChart && other.rsiLine) other.rsiChart.setCrosshairPosition(0, bar.time, other.rsiLine); } catch(e){}
         });
         _syncActive = false;
       });
@@ -8909,8 +8960,164 @@ function jrnlExportCSV(){
         });
         _syncActive = false;
       });
-    });
   }
+
+  // ── Quarterly mini-chart (client-derived) + Ratings/Quarterly toggle ───────
+  function _build3MCandles(dailyCandles, dailyRsByTime, dailyVolume) {
+    const buckets = new Map(); // "yyyy-mm-01" (quarter start) -> {time,open,high,low,close,rs,volume}
+    for (let i = 0; i < dailyCandles.length; i++) {
+      const c = dailyCandles[i];
+      const d = new Date(c.time + 'T00:00:00');
+      const qMonth = Math.floor(d.getMonth() / 3) * 3; // 0, 3, 6, 9
+      const key = `${d.getFullYear()}-${String(qMonth + 1).padStart(2, '0')}-01`;
+      const rsVal  = dailyRsByTime ? dailyRsByTime[c.time] : null;
+      const volVal = dailyVolume && dailyVolume[i] ? (dailyVolume[i].value || 0) : 0;
+      let b = buckets.get(key);
+      if (!b) {
+        b = { time: key, open: c.open, high: c.high, low: c.low, close: c.close, rs: rsVal ?? null, volume: volVal };
+        buckets.set(key, b);
+      } else {
+        b.high  = Math.max(b.high, c.high);
+        b.low   = Math.min(b.low, c.low);
+        b.close = c.close; // daily candles arrive oldest→newest, so last write wins
+        if (rsVal != null) b.rs = rsVal; // same "last value wins" rule as close
+        b.volume += volVal;
+      }
+    }
+    return [...buckets.values()].sort((a, b) => a.time < b.time ? -1 : 1);
+  }
+
+  // Generic EMA — same formula as run_indicator_backfill.py's _ema_full:
+  // seed = SMA of first `period` closes, then standard exponential smoothing.
+  function _emaFull(closes, period) {
+    const n = closes.length, out = new Array(n).fill(null);
+    if (n < period) return out;
+    let seed = 0;
+    for (let i = 0; i < period; i++) seed += closes[i];
+    out[period - 1] = seed / period;
+    const k = 2 / (period + 1);
+    for (let i = period; i < n; i++) out[i] = closes[i] * k + out[i - 1] * (1 - k);
+    return out;
+  }
+
+  // Builds the quarterly mini-chart via the SAME _buildChart() the other three
+  // panels use — not a bespoke implementation — so it automatically gets the
+  // same visible-bar cropping, candle map, RS sub-pane, and crosshair/time
+  // sync (once wired below) as monthly/weekly/daily.
+  // EMA50/SMA200 are deliberately NOT computed: they'd need 12.5 / 50 years of
+  // quarterly history to ever warm up, and no symbol here has more than ~6
+  // years of daily data — those lines would never draw.
+  function _buildMiniChart() {
+    const el = document.getElementById('ibdMiniChart');
+    if (!el) return;
+    const dailyEntry = _charts.find(c => c.timeframe === 'daily');
+    if (!dailyEntry || !dailyEntry.candles || !dailyEntry.candles.length) return;
+
+    // Remove any previous quarterly entry — the chart instance, its RS
+    // sub-pane instance (same full cleanup _destroyCharts() does for every
+    // other pane), AND its own ResizeObservers. Disconnecting those last is
+    // the part that actually matters: a ResizeObserver keeps firing against
+    // its watched element even after the chart it resizes has been removed,
+    // so without this an old observer fires on the next toggle/resize and
+    // throws "Object is disposed" trying to resize an already-removed chart.
+    const prevIdx = _charts.findIndex(c => c.timeframe === 'quarterly');
+    if (prevIdx >= 0) {
+      const prev = _charts[prevIdx];
+      try { prev.roP.disconnect(); } catch(e){}
+      try { if (prev.roRs) prev.roRs.disconnect(); } catch(e){}
+      try { prev.priceChart.remove(); } catch(e){}
+      try { if (prev.rsChart) prev.rsChart.remove(); } catch(e){}
+      _charts.splice(prevIdx, 1);
+    }
+    _miniChart = null;
+
+    const allQuarters = _build3MCandles(dailyEntry.candles, dailyEntry.rsByTime, dailyEntry.volume);
+    const closes = allQuarters.map(q => q.close);
+    const ema20  = _emaFull(closes, 20);
+    const ema20Pts = [];
+    const rsPts = [];
+    const volPts = [];
+    for (let i = 0; i < allQuarters.length; i++) {
+      const q = allQuarters[i];
+      if (ema20[i] != null) ema20Pts.push({ time: q.time, value: ema20[i] });
+      if (q.rs != null) rsPts.push({ time: q.time, value: q.rs });
+      volPts.push({ time: q.time, value: q.volume, color: q.close >= q.open ? '#26a69a' : '#ef5350' });
+    }
+
+    _miniChart = _buildChart('ibdMiniChart', { candles: allQuarters, ema20: ema20Pts, rs: rsPts, volume: volPts }, 'quarterly', null);
+    if (!_miniChart) return;
+
+    // Wire this one new entry into the shared crosshair/click sync — the three
+    // already-subscribed panels pick it up automatically (see _wireChartSync).
+    const entry = _charts[_charts.length - 1];
+    if (entry && entry.timeframe === 'quarterly') _wireChartSync(entry, _charts.length - 1);
+
+    // If the chart was opened from a historical strip-bar click, the main sync
+    // ran before this async build finished — catch this one chart up now.
+    if (_pendingTargetDate) {
+      const bar = _nearestCandle(entry.candles, _pendingTargetDate, 'quarterly', entry.candleMap);
+      if (bar) {
+        try {
+          const idx = entry.candles.findIndex(c => c.time === bar.time);
+          const span = VISIBLE_BARS.quarterly || 60;
+          const from = Math.max(0, idx - Math.floor(span / 2));
+          entry.priceChart.timeScale().setVisibleLogicalRange({ from, to: from + span });
+          entry.priceChart.setCrosshairPosition(bar.close, bar.time, entry.candleSeries);
+        } catch(e){}
+      }
+    }
+  }
+
+  // Applies the current _ibdView ('ratings' | '3m') to the DOM. Called both from
+  // the toggle button and after a new symbol's chart data loads, so the user's
+  // last-chosen view carries over to the next stock instead of resetting.
+  function _applyIbdView() {
+    const ratingsBody = document.getElementById('ibdRatingsBody');
+    const miniWrap     = document.getElementById('ibdMiniChartWrap');
+    const legendFooter = document.getElementById('ibdLegendFooter');
+    const ratingsBtn   = document.getElementById('ibdViewRatingsBtn');
+    const qLabel       = document.getElementById('ibdChartQLabel');
+    const qSep         = document.getElementById('ibdChartQSep');
+    const show3m = _ibdView === '3m';
+
+    if (ratingsBody)  ratingsBody.style.display  = show3m ? 'none' : 'flex';
+    if (miniWrap)     miniWrap.style.display     = show3m ? 'flex' : 'none';
+    if (legendFooter) legendFooter.style.display = show3m ? 'none' : '';
+    if (qLabel)       qLabel.style.display       = show3m ? '' : 'none';
+    if (qSep)         qSep.style.display         = show3m ? '' : 'none';
+    // Single toggle button: filled/"on" while Ratings is the active view,
+    // outlined/"off" (the default, since Quarterly is the default view) otherwise.
+    if (ratingsBtn)  { ratingsBtn.style.background = show3m ? 'transparent' : '#0969da'; ratingsBtn.style.color = show3m ? '#0969da' : '#fff'; }
+
+    // Wait a frame so a newly-visible container has real dimensions before
+    // LightweightCharts measures clientWidth/clientHeight on it.
+    if (show3m) requestAnimationFrame(_buildMiniChart);
+  }
+
+  window.ibdSetView = function(mode) {
+    _ibdView = mode;
+    _applyIbdView();
+  };
+
+  // Single-button toggle between Ratings and Quarterly view (replaces a
+  // two-button Ratings/3M segmented control).
+  window.ibdToggleRatings = function() {
+    ibdSetView(_ibdView === 'ratings' ? '3m' : 'ratings');
+  };
+
+  // Watchlist star in the chart modal's Daily-pane header. Mirrors the star
+  // on the open symbol's row where one exists (so unstarring from the chart
+  // also unstars the row, and the auto-advance-to-next-stock behavior on
+  // Watchlist-only lists still kicks in); falls back to a direct toggle when
+  // no pinned row has its own star (e.g. opened from Sector Lens).
+  window._ibdHeaderWlToggle = function(ev) {
+    if (ev) ev.stopPropagation();
+    const rowStar = _swPinnedRow && _swPinnedRow.querySelector('.wl-star');
+    if (rowStar) { rowStar.click(); return; }
+    if (_currentSym && typeof window._wlToggle === 'function') {
+      window._wlToggle(ev, document.getElementById('ibdChartWlStar'), _currentSym);
+    }
+  };
 
   // Reposition a chart's time axis so `barTime` is centered in the visible window.
   // Always repositions — the old "if already visible, skip" guard prevented sync
@@ -9093,6 +9300,24 @@ function jrnlExportCSV(){
     const st  = _isIdx ? null : (row?.rs21_rank  ?? null);
     const _setMini = (id, v) => { const e=document.getElementById(id); if(e) e.innerHTML=_ibdMiniChip(v); };
     _setMini('ibdStockLT', lt); _setMini('ibdStockMid', mid); _setMini('ibdStockST', st);
+
+    // Watchlist star in the header — indices have no watchlist entry, hide it there.
+    const wlStarEl = document.getElementById('ibdChartWlStar');
+    if (wlStarEl) {
+      if (_isIdx) {
+        wlStarEl.style.display = 'none';
+      } else {
+        wlStarEl.style.display = '';
+        wlStarEl.dataset.wlSym = sym;
+        // _wlRefreshStars() sweeps every ".wl-star" element by its data-wl-sym —
+        // but Lens watchlist rows carry a SECOND class (lhr-wl-star) and read a
+        // DIFFERENT dataset key (data-lhr-sym), so that sweep finds data-wl-sym
+        // undefined on them and wrongly blanks them to unchecked. Re-sync those
+        // right after so opening a chart doesn't un-star the whole Lens list.
+        if (typeof _wlRefreshStars === 'function') _wlRefreshStars();
+        if (typeof _lhrWlRefreshStars === 'function') _lhrWlRefreshStars();
+      }
+    }
 
     // Signal dates as pill tags
     const SIG_COLORS = { 'D-Cross':'#1a73e8' };
@@ -9361,6 +9586,11 @@ function jrnlExportCSV(){
       _buildChart('ibdChartDaily',  d.weekly,  'weekly',  signals);
       _buildChart('ibdChartHourly', d.daily,   'daily',   signals, d.weekly);
       _subscribeCrosshair();
+      // The Quarterly mini-chart (if shown) builds asynchronously inside
+      // _applyIbdView — remember the target date so it can sync itself too
+      // once it exists, instead of missing this initial sync entirely.
+      _pendingTargetDate = targetDate || null;
+      _applyIbdView(); // re-apply the persisted Ratings/Quarterly view for this symbol's fresh data
 
       // TradingView-style time sync: if opened from a historical strip bar, scroll
       // all three charts to center on that date and place crosshairs there.
@@ -9738,10 +9968,11 @@ function jrnlExportCSV(){
 
       // Build RSI chart if we have candle data
       if (hEntry && rsiEl) {
-        const BORDER = '#d0d7de', GRID = 'rgba(0,0,0,0.04)';
-        const PRICE_OPTS = { layout: { background: { color: '#fff' }, textColor: '#24292f' },
-                             crosshair: { vertLine: { labelBackgroundColor: '#8c959f' }, horzLine: { labelBackgroundColor: '#8c959f' } },
-                             timeScale: { borderColor: BORDER, timeVisible: false, secondsVisible: false },
+        const BORDER = '#d0d7de';
+        const PRICE_OPTS = { layout: { background: { color: '#fff' }, textColor: '#24292f', attributionLogo: false },
+                             crosshair: { mode: 0, vertLine: { labelBackgroundColor: CROSSHAIR_LABEL_BG }, horzLine: { labelBackgroundColor: CROSSHAIR_LABEL_BG } },
+                             timeScale: { borderColor: BORDER, timeVisible: false, secondsVisible: false,
+                                          barSpacing: BAR_SPACING_PX, rightOffset: RIGHT_OFFSET_BARS },
                              handleScroll: true, handleScale: true };
         const rsiData = _calcRsi(hEntry.candles, 14);
         if (rsiData.length) {
@@ -9749,9 +9980,9 @@ function jrnlExportCSV(){
             ...PRICE_OPTS,
             width: rsiEl.clientWidth || 380, height: rsiEl.clientHeight || 90,
             timeScale: { ...PRICE_OPTS.timeScale, timeVisible: false, borderColor: BORDER },
-            rightPriceScale: { borderColor: BORDER, visible: true, scaleMargins: { top: 0.1, bottom: 0.1 } },
+            rightPriceScale: { borderColor: BORDER, visible: true, minimumWidth: RS_AXIS_WIDTH, scaleMargins: { top: 0.1, bottom: 0.1 } },
             leftPriceScale: { visible: false },
-            grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
+            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
           });
           const rsiLine = rsiChart.addLineSeries({
             color: '#9b8ec4', lineWidth: 1,

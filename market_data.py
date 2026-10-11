@@ -129,7 +129,15 @@ def fetch_daily(limiter: _RateLimiter, symbol: str, from_date: str, to_date: str
     for attempt in range(1, retries + 1):
         limiter.acquire()
         try:
-            df = yf.Ticker(symbol).history(start=from_date, end=end, interval="1d", auto_adjust=False)
+            # auto_adjust=True: split-adjusted prices (matches TradingView's
+            # default view). Raw/unadjusted (the old False) leaves a
+            # permanent discontinuity in stored history at every stock split —
+            # e.g. AIXI's 3 reverse splits (2024-08-23, 2026-05-11, 2026-09-08,
+            # combined ~1260x) made its stored price jump from ~$1000s to ~$1.5
+            # with no adjustment in between. ~42% of a random universe sample
+            # has at least one split in its history, so this affected far more
+            # than one symbol.
+            df = yf.Ticker(symbol).history(start=from_date, end=end, interval="1d", auto_adjust=True)
             return _history_to_rows(symbol, df, to_date)
         except Exception as e:
             logger.warning("%s: daily fetch failed (attempt %s): %s", symbol, attempt, e)
