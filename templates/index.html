@@ -2126,7 +2126,7 @@ function switchPage(id, _wlReturn=false){
     // Sector Lens, edited the selection, then returned via the nav tab instead of
     // the dedicated "Stocks Lens →" button) — pull the current selection now so
     // Stocks Lens doesn't keep showing stocks for a stale/old set of sectors.
-    const names = [...new Set([..._eyeSelection, ..._strikeSelection])];
+    const names = [...new Set([..._eyeSelection, ..._strikeSelection])].map(_cleanIndexName);
     if (names.length) { _hrHawksSel = new Set(names); _hrHmUpdateLabel(); }
     _tabSelSynced = true;
   }
@@ -2893,6 +2893,11 @@ function renderIdxMulti(){
   _updateIdxMultiLabel();
 }
 function escAttr(s){return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+// Strips an accidental leading "TICKER - " (e.g. from reading a rendered
+// "XLE - Energy" table cell instead of the plain sector/index name) so stale
+// or buggy callers can't poison name-based Sets like _hrHawksSel with values
+// that will never match hawks_mappings[].name (which is always the plain name).
+function _cleanIndexName(s){ return typeof s === 'string' ? s.replace(/^[A-Z]{1,6}(\.[A-Z])?\s*-\s*/, '') : s; }
 function toggleIdxOpt(cb,name){
   if(cb.checked) _idxSelected.add(name); else _idxSelected.delete(name);
   renderIdxMulti(); applyAllFilters();
@@ -3957,7 +3962,7 @@ function renderSwingRadar(data) {
     const _sel = _strikeSelection.has(x.name);
     const _esc = x.name.replace(/'/g,"\\'");
     const _symEsc = x.symbol.replace(/"/g, '&quot;');
-    return `<tr class="tab-sel-row${_sel?' tab-row-selected':''}" style="cursor:pointer;" data-lt="${x._lt_score??''}" data-mid="${x._mid_score??''}" data-st="${x._short_score??''}" data-hr-sym="${_symEsc}" onclick="_swSectorRowOpen(event,this,'${_esc}')">
+    return `<tr class="tab-sel-row${_sel?' tab-row-selected':''}" style="cursor:pointer;" data-lt="${x._lt_score??''}" data-mid="${x._mid_score??''}" data-st="${x._short_score??''}" data-hr-sym="${_symEsc}" data-tab-name="${escAttr(x.name)}" onclick="_swSectorRowOpen(event,this,'${_esc}')">
       <td style="padding:7px 6px 7px 14px;text-align:center;vertical-align:middle;" onclick="event.stopPropagation()"><input type="checkbox" class="tab-cb" ${_sel?'checked':''} onclick="toggleStrikeRow(this.closest('tr'),'${_esc}')"></td>
       <td style="padding:7px 4px;text-align:center;vertical-align:middle;color:var(--text3);font-size:.73rem;">${x.display_rank}</td>
       <td style="padding:7px 8px;vertical-align:middle;font-weight:600;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onclick="event.stopPropagation();toggleStrikeRow(this.closest('tr'),'${_esc}')">${x.symbol} - ${x.name}</td>
@@ -4946,6 +4951,7 @@ function _ibdUpdateCount() {
 }
 
 function toggleEyeRow(tr, name) {
+  name = _cleanIndexName(name);
   const add = !_eyeSelection.has(name);
   if (add) { _eyeSelection.add(name); _strikeSelection.add(name); }
   else      { _eyeSelection.delete(name); _strikeSelection.delete(name); }
@@ -4957,6 +4963,7 @@ function toggleEyeRow(tr, name) {
   _updateTabBar();
 }
 function toggleStrikeRow(tr, name) {
+  name = _cleanIndexName(name);
   const add = !_strikeSelection.has(name);
   if (add) { _strikeSelection.add(name); _eyeSelection.add(name); }
   else      { _strikeSelection.delete(name); _eyeSelection.delete(name); }
@@ -4967,7 +4974,7 @@ function toggleStrikeRow(tr, name) {
 }
 function toggleStrikeSelectAll(masterCb) {
   document.querySelectorAll('#swingBody tr.tab-sel-row').forEach(tr => {
-    const name = tr.querySelector('td:nth-child(3)')?.textContent?.trim();
+    const name = tr.dataset.tabName || tr.querySelector('td:nth-child(3)')?.textContent?.trim();
     if (!name) return;
     const cb = tr.querySelector('.tab-cb');
     if (masterCb.checked) { _strikeSelection.add(name); _eyeSelection.add(name); tr.classList.add('tab-row-selected'); if (cb) cb.checked = true; }
@@ -5316,7 +5323,7 @@ function _hfApply(keepOpen) {
     // For lt: prefer data attribute, fall back to live _ibdGroupRatings lookup by index name
     let lt = tr.dataset.lt !== '' ? Number(tr.dataset.lt) : null;
     if (lt == null) {
-      const name = tr.querySelector('td:nth-child(3)')?.textContent?.trim();
+      const name = tr.dataset.tabName || tr.querySelector('td:nth-child(3)')?.textContent?.trim();
       if (name && _ibdGroupRatings[name] != null) lt = _ibdGroupRatings[name];
     }
     return {
@@ -6326,7 +6333,7 @@ function _goToStocksLensFromTab() {
   // Set this BEFORE switchPage(), since switchPage() renders the chip bar and table
   // immediately — setting it after left the chip bar showing the previous selection
   // while the table (rendered later in this function) already reflected the new one.
-  _hrHawksSel = new Set(names);
+  _hrHawksSel = new Set(names.map(_cleanIndexName));
   _hrHmUpdateLabel();
   hrHmRender();
   _tabSelSynced = true;
